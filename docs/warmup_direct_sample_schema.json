@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/twilight-struggle/warmup-direct-sample.schema.json",
+  "title": "Twilight Struggle Direct Warmup Game",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["format", "game_id", "ruleset", "samples"],
+  "properties": {
+    "format": {
+      "const": "ts_warmup_game_v1"
+    },
+    "game_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ruleset": {
+      "const": "optional_us_plus_2"
+    },
+    "partial": {
+      "type": "boolean"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "kind": {"type": "string"},
+        "name": {"type": "string"}
+      }
+    },
+    "start": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "seed": {"type": ["integer", "null"]},
+        "hands": {
+          "type": "object",
+          "required": ["us", "ussr"],
+          "properties": {
+            "us": {"type": "array", "items": {"type": "string"}},
+            "ussr": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "initial_influence": {
+          "type": "object",
+          "properties": {
+            "us": {"$ref": "#/$defs/influenceMap"},
+            "ussr": {"$ref": "#/$defs/influenceMap"}
+          }
+        }
+      }
+    },
+    "samples": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/directSample"}
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "winner": {"type": ["string", "null"], "enum": ["us", "ussr", "tie", "timeout", null]},
+        "terminal_reason": {"type": ["string", "null"]},
+        "vp": {"type": ["integer", "null"]},
+        "turn": {"type": ["integer", "null"]},
+        "steps": {"type": ["integer", "null"]}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "influenceMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "side": {
+      "type": "string",
+      "enum": ["us", "ussr"]
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "setup_ussr",
+        "setup_us",
+        "setup_us_bonus",
+        "headline",
+        "headline_ussr",
+        "headline_us",
+        "headline_resolve",
+        "action",
+        "event",
+        "scoring",
+        "response"
+      ]
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "decision", "value"],
+      "properties": {
+        "type": {"type": "string"},
+        "decision": {"type": "string"},
+        "value": {"type": "string"},
+        "label": {"type": "string"},
+        "card": {"type": "string"},
+        "country": {"type": "string"},
+        "region": {"type": "string"},
+        "selector": {"type": "string"},
+        "event": {"type": "string"},
+        "prompt": {"type": "string"}
+      }
+    },
+    "country": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "us", "ussr", "stability", "bg", "region", "control"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "us": {"type": "integer", "minimum": 0},
+        "ussr": {"type": "integer", "minimum": 0},
+        "stability": {"type": "integer", "minimum": 1},
+        "bg": {"type": "boolean"},
+        "region": {"type": "string"},
+        "control": {"type": "string", "enum": ["us", "ussr", "none"]},
+        "neighbours": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "side",
+        "current_player",
+        "turn",
+        "action_round",
+        "vp",
+        "defcon",
+        "milops",
+        "space",
+        "hand_count",
+        "deck_count",
+        "china_owner",
+        "events",
+        "hand",
+        "discard",
+        "removed",
+        "countries"
+      ],
+      "properties": {
+        "side": {"$ref": "#/$defs/side"},
+        "current_player": {"$ref": "#/$defs/side"},
+        "phase": {"type": "string"},
+        "prompt": {"type": "string"},
+        "turn": {"type": "integer", "minimum": 1, "maximum": 10},
+        "action_round": {"type": "integer", "minimum": 0},
+        "vp": {"type": "integer", "minimum": -20, "maximum": 20},
+        "defcon": {"type": "integer", "minimum": 1, "maximum": 5},
+        "milops": {
+          "type": "object",
+          "required": ["us", "ussr"],
+          "properties": {
+            "us": {"type": "integer", "minimum": 0},
+            "ussr": {"type": "integer", "minimum": 0}
+          }
+        },
+        "space": {
+          "type": "object",
+          "required": ["us", "ussr"],
+          "properties": {
+            "us": {"type": "integer", "minimum": 0},
+            "ussr": {"type": "integer", "minimum": 0}
+          }
+        },
+        "hand_count": {
+          "type": "object",
+          "required": ["us", "ussr"],
+          "properties": {
+            "us": {"type": "integer", "minimum": 0},
+            "ussr": {"type": "integer", "minimum": 0}
+          }
+        },
+        "deck_count": {"type": "integer", "minimum": 0},
+        "china_owner": {"type": "string", "enum": ["us", "ussr", "none"]},
+        "events": {"type": "object", "additionalProperties": true},
+        "hand": {"type": "array", "items": {"type": "string"}},
+        "discard": {"type": "array", "items": {"type": "string"}},
+        "removed": {"type": "array", "items": {"type": "string"}},
+        "countries": {
+          "type": "array",
+          "minItems": 84,
+          "items": {"$ref": "#/$defs/country"}
+        }
+      }
+    },
+    "directSample": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["step", "side", "phase", "observation", "legal_actions"],
+      "oneOf": [
+        {"required": ["choice"]},
+        {"required": ["expert_action_index"]}
+      ],
+      "properties": {
+        "step": {"type": "integer", "minimum": 0},
+        "turn": {"type": "integer", "minimum": 1, "maximum": 10},
+        "action_round": {"type": "integer", "minimum": 0},
+        "side": {"$ref": "#/$defs/side"},
+        "phase": {"$ref": "#/$defs/phase"},
+        "prompt_class": {"type": "string"},
+        "observation": {"$ref": "#/$defs/observation"},
+        "legal_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/action"}
+        },
+        "expert_action_index": {"type": "integer", "minimum": 0},
+        "choice": {"$ref": "#/$defs/action"},
+        "weight": {"type": "number", "exclusiveMinimum": 0},
+        "result_after": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

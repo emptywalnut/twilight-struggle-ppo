@@ -1,0 +1,832 @@
+REPLAY 066
+DATA_SOURCE=all-turns
+
+--- Turn 1, both Headline: Nasser* & Mideast Scoring ---
+[score 0] [defcon 5]
+
+SETUP: : Bidart will play as USSR.
+S3 will play as USA.
+Handicap influence: US +2
+Scenario: Standard
+Optional Cards Added
+Time per Player: 90 Minutes
+USSR +4 in Poland [0][4]
+USSR +1 in East Germany [0][4]
+USSR +1 in Austria [0][1]
+US +4 in West Germany [4][0]
+US +4 in Italy [4][0]
+US +1 in Iran [2][0]
+
+Turn 1, Headline Phase: Nasser* & Mideast Scoring: USSR Headlines Nasser*
+US Headlines Mideast Scoring
+Event: Nasser*
+USSR +2 in Egypt [0][2]
+
+Event: Mideast Scoring
+No VP awarded. Score is even.
+
+--- Turn 1, USSR AR1: Socialist Governments ---
+[score 0] [defcon 4]
+
+Turn 1, USSR AR1: Socialist Governments: Coup (3 Ops):
+Target: Iran
+SUCCESS: 3 [ + 3 - 2x2 = 2 ]
+US -2 in Iran [0][0]
+USSR Military Ops to 3
+DEFCON degrades to 4
+
+--- Turn 1, US AR1: Captured Nazi Scientist* ---
+[score 2] [defcon 4]
+
+Turn 1, US AR1: Captured Nazi Scientist*: Event: Captured Nazi Scientist*
+US advances to 1 in the Space Race.
+US gains 2 VP. Score is US 2.
+
+--- Turn 1, USSR AR2: Independent Reds* ---
+[score 2] [defcon 4]
+
+Turn 1, USSR AR2: Independent Reds*: Place Influence (2 Ops):
+USSR +1 in South Korea [1][1]
+USSR +1 in Afghanistan [0][1]
+
+Event: Independent Reds*
+
+--- Turn 1, US AR2: Asia Scoring ---
+[score 1] [defcon 4]
+
+Turn 1, US AR2: Asia Scoring: Event: Asia Scoring
+USSR gains 1 VP. Score is US 1.
+
+--- Turn 1, USSR AR3: Olympic Games ---
+[score 1] [defcon 4]
+
+Turn 1, USSR AR3: Olympic Games: Place Influence (2 Ops):
+USSR +1 in West Germany [4][1]
+
+--- Turn 1, US AR3: NATO* ---
+[score 1] [defcon 4]
+
+Turn 1, US AR3: NATO*: Place Influence (4 Ops):
+US +3 in France [3][0]
+US +1 in West Germany [5][1]
+
+--- Turn 1, USSR AR4: Suez Crisis* ---
+[score 1] [defcon 4]
+
+Turn 1, USSR AR4: Suez Crisis*: Event: Suez Crisis*
+US -1 in Israel [0][0]
+US -2 in France [1][0]
+US -1 in UK [4][0]
+
+--- Turn 1, US AR4: Red Scare/Purge ---
+[score 1] [defcon 4]
+
+Turn 1, US AR4: Red Scare/Purge: Place Influence (4 Ops):
+US +2 in France [3][0]
+US +1 in UK [5][0]
+US +1 in Malaysia [1][0]
+
+--- Turn 1, USSR AR5: NORAD* ---
+[score 1] [defcon 4]
+
+Turn 1, USSR AR5: NORAD*: Space Race (3 Ops):
+Die roll: 1 -- Success! (Needed 3 or less)
+USSR advances to 1 in the Space Race.
+USSR gains 1 VP. Score is even.
+
+--- Turn 1, US AR5: East European Unrest ---
+[score 1] [defcon 3]
+
+Turn 1, US AR5: East European Unrest: Coup (3 Ops):
+Target: Egypt
+SUCCESS: 3 [ + 3 - 2x2 = 2 ]
+USSR -2 in Egypt [0][0]
+US Military Ops to 3
+DEFCON degrades to 3
+
+--- Turn 1, USSR AR6: Indo-Pakistani War ---
+[score 1] [defcon 3]
+
+Turn 1, USSR AR6: Indo-Pakistani War: Place Influence (2 Ops):
+USSR +1 in Israel [0][1]
+USSR +1 in Pakistan [0][1]
+
+--- Turn 1, US AR6: Marshall Plan* ---
+[score 1] [defcon 3]
+
+Turn 1, US AR6: Marshall Plan*: Place Influence (4 Ops):
+US +2 in France [5][0]
+US +2 in Algeria [2][0]
+
+--- Turn 1, US AR6: Marshall Plan* ---
+[score 1] [defcon 4]
+
+
+
+--- Turn 2, both Headline: Romanian Abdication* & Containment* ---
+[score 1] [defcon 4]
+
+Turn 2, Headline Phase: Romanian Abdication* & Containment*: DEFCON improves to 4
+USSR Headlines Romanian Abdication*
+US Headlines Containment*
+Event: Containment*
+Containment* is now in play.
+
+Event: Romanian Abdication*
+USSR +3 in Romania [0][3]
+
+--- Turn 2, USSR AR1: Nuclear Test Ban ---
+[score 1] [defcon 3]
+
+Turn 2, USSR AR1: Nuclear Test Ban: Coup (4 Ops):
+Target: Algeria
+SUCCESS: 5 [ + 4 - 2x2 = 5 ]
+US -2 in Algeria [0][0]
+USSR +3 in Algeria [0][3]
+USSR Military Ops to 4
+DEFCON degrades to 3
+
+--- Turn 2, US AR1: Formosan Resolution* ---
+[score 1] [defcon 3]
+
+Turn 2, US AR1: Formosan Resolution*: Coup (3 Ops):
+Target: Syria
+SUCCESS: 4 [ + 3 - 2x2 = 3 ]
+USSR -1 in Syria [0][0]
+US +2 in Syria [2][0]
+US Military Ops to 3
+
+--- Turn 2, USSR AR2: De-Stalinization* ---
+[score 1] [defcon 3]
+
+Turn 2, USSR AR2: De-Stalinization*: Event: De-Stalinization*
+USSR -3 in Romania [0][0]
+USSR -1 in Finland [0][0]
+USSR +2 in Thailand [0][2]
+USSR +1 in Chile [0][1]
+USSR +1 in South Africa [1][1]
+
+--- Turn 2, US AR2: Defectors ---
+[score 1] [defcon 3]
+
+Turn 2, US AR2: Defectors: Place Influence (2 Ops):
+US +1 in Angola [1][0]
+US +1 in Thailand [1][2]
+
+--- Turn 2, USSR AR3: US/Japan Mutual Defense Pact* ---
+[score 1] [defcon 3]
+
+Turn 2, USSR AR3: US/Japan Mutual Defense Pact*: Place Influence (4 Ops):
+USSR +1 in Thailand [1][3]
+USSR +1 in Laos/Cambodia [0][1]
+USSR +1 in Argentina [0][1]
+USSR +1 in Lebanon [0][1]
+
+Event: US/Japan Mutual Defense Pact*
+US +3 in Japan [4][0]
+US/Japan Mutual Defense Pact* is now in play.
+
+--- Turn 2, US AR3: Special Relationship ---
+[score 1] [defcon 2]
+
+Turn 2, US AR3: Special Relationship: Coup (3 Ops):
+Target: Argentina
+SUCCESS: 3 [ + 3 - 2x2 = 2 ]
+USSR -1 in Argentina [0][0]
+US +1 in Argentina [1][0]
+US Military Ops to 5
+DEFCON degrades to 2
+
+--- Turn 2, USSR AR4: The Cambridge Five ---
+[score 1] [defcon 2]
+
+Turn 2, USSR AR4: The Cambridge Five: Place Influence (2 Ops):
+USSR +2 in Iran [0][2]
+
+--- Turn 2, US AR4: CIA Created* ---
+[score 1] [defcon 2]
+
+Turn 2, US AR4: CIA Created*: Place Influence (1 Ops):
+US +1 in Argentina [2][0]
+US +1 in Indonesia [1][0]
+
+--- Turn 2, USSR AR5: Korean War* ---
+[score 1] [defcon 2]
+
+Turn 2, USSR AR5: Korean War*: Place Influence (2 Ops):
+USSR +1 in Pakistan [0][2]
+USSR +1 in Thailand [1][4]
+
+--- Turn 2, US AR5: Blockade* ---
+[score 1] [defcon 2]
+
+Turn 2, US AR5: Blockade*: Event: Blockade*
+US discards Vietnam Revolts*
+
+Place Influence (1 Ops):
+US +1 in Zaire [1][0]
+US +1 in Malaysia [2][0]
+
+--- Turn 2, USSR AR6: The China Card ---
+[score 1] [defcon 2]
+
+Turn 2, USSR AR6: The China Card: Place Influence (4 Ops):
+USSR +3 in India [0][3]
+USSR +1 in North Korea [0][4]
+USSR +1 in Vietnam [0][1]
+
+--- Turn 2, US AR6: Arab-Israeli War ---
+[score 1] [defcon 2]
+
+Turn 2, US AR6: Arab-Israeli War: Event: Arab-Israeli War
+War in Israel
+DEFEAT: 1 (-1)  < 4
+USSR Military Ops to 5
+
+Place Influence (2 Ops):
+US +1 in Israel [1][1]
+US +1 in Uruguay [1][0]
+US +1 in Panama [2][0]
+
+--- Turn 2, US AR6: Arab-Israeli War ---
+[score 1] [defcon 3]
+
+
+
+--- Turn 3, both Headline: De Gaulle Leads France* & Indo-Pakistani War ---
+[score 2] [defcon 3]
+
+Turn 3, Headline Phase: De Gaulle Leads France* & Indo-Pakistani War: DEFCON improves to 3
+*RESHUFFLE*
+USSR Headlines De Gaulle Leads France*
+US Headlines Indo-Pakistani War
+Event: De Gaulle Leads France*
+US -2 in France [3][0]
+USSR +1 in France [3][1]
+De Gaulle Leads France* is now in play.
+
+Event: Indo-Pakistani War
+War in India
+VICTORY: 5 (-1)  >= 4
+USSR -3 in India [0][0]
+US +3 in India [3][0]
+US gains 2 VP. Score is US 2.
+US Military Ops to 2
+
+--- Turn 3, USSR AR1: COMECON* ---
+[score 2] [defcon 2]
+
+Turn 3, USSR AR1: COMECON*: Coup (3 Ops):
+Target: Zaire
+SUCCESS: 5 [ + 3 - 2x1 = 6 ]
+US -1 in Zaire [0][0]
+USSR +5 in Zaire [0][5]
+USSR Military Ops to 3
+DEFCON degrades to 2
+
+--- Turn 3, US AR1: Red Scare/Purge ---
+[score 2] [defcon 2]
+
+Turn 3, US AR1: Red Scare/Purge: Place Influence (4 Ops):
+US +1 in Brazil [1][0]
+US +1 in South Africa [2][1]
+US +1 in Egypt [1][0]
+US +1 in France [4][1]
+
+--- Turn 3, USSR AR2: Decolonization ---
+[score 2] [defcon 2]
+
+Turn 3, USSR AR2: Decolonization: Event: Decolonization
+USSR +1 in Nigeria [0][1]
+USSR +1 in Tunisia [0][1]
+USSR +1 in Indonesia [1][1]
+USSR +1 in Angola [1][1]
+
+--- Turn 3, US AR2: Marshall Plan* ---
+[score 2] [defcon 2]
+
+Turn 3, US AR2: Marshall Plan*: Place Influence (4 Ops):
+US +2 in Libya [2][0]
+US +1 in Angola [2][1]
+US +1 in Indonesia [2][1]
+
+--- Turn 3, USSR AR3: NORAD* ---
+[score 2] [defcon 2]
+
+Turn 3, USSR AR3: NORAD*: Place Influence (3 Ops):
+USSR +3 in South Korea [1][4]
+
+Event: NORAD*
+NORAD* is now in play.
+
+--- Turn 3, US AR3: The China Card ---
+[score 2] [defcon 2]
+
+Turn 3, US AR3: The China Card: Place Influence (4 Ops):
+US +4 in Pakistan [4][2]
+
+--- Turn 3, USSR AR4: Truman Doctrine* ---
+[score 2] [defcon 2]
+
+Turn 3, USSR AR4: Truman Doctrine*: Event: Truman Doctrine*
+USSR -1 in Austria [0][0]
+
+Place Influence (1 Ops):
+USSR +1 in Chile [0][2]
+
+--- Turn 3, US AR4: Europe Scoring ---
+[score 7] [defcon 2]
+
+Turn 3, US AR4: Europe Scoring: Event: Europe Scoring
+US gains 5 VP. Score is US 7.
+
+--- Turn 3, USSR AR5: Duck and Cover ---
+[score 7] [defcon 2]
+
+Turn 3, USSR AR5: Duck and Cover: Space Race (3 Ops):
+Die roll: 4 -- Success! (Needed 4 or less)
+USSR advances to 2 in the Space Race.
+
+--- Turn 3, US AR5: Fidel* ---
+[score 7] [defcon 2]
+
+Turn 3, US AR5: Fidel*: Space Race (2 Ops):
+Die roll: 6 -- Failed! (Needed 4 or less)
+
+--- Turn 3, USSR AR6: Five Year Plan ---
+[score 7] [defcon 2]
+
+Turn 3, USSR AR6: Five Year Plan: Place Influence (3 Ops):
+USSR +2 in Iraq [0][3]
+USSR +1 in Chile [0][3]
+
+Event: Five Year Plan
+USSR discards Asia Scoring
+
+--- Turn 3, US AR6: Warsaw Pact Formed* ---
+[score 7] [defcon 2]
+
+Turn 3, US AR6: Warsaw Pact Formed*: Place Influence (3 Ops):
+US +2 in Venezuela [2][0]
+US +1 in Brazil [2][0]
+
+Event: Warsaw Pact Formed*
+Event: Warsaw Pact Formed*
+USSR +2 in Poland [0][6]
+USSR +2 in East Germany [0][6]
+USSR +1 in Yugoslavia [0][1]
+
+Warsaw Pact Formed* is now in play.
+
+--- Turn 3, US AR6: Warsaw Pact Formed* ---
+[score 7] [defcon 3]
+
+
+
+--- Turn 4, both Headline: Portuguese Empire Crumbles* & Nixon Plays The China Card* ---
+[score 7] [defcon 3]
+
+Turn 4, Headline Phase: Portuguese Empire Crumbles* & Nixon Plays The China Card*: DEFCON improves to 3
+USSR Headlines Portuguese Empire Crumbles*
+US Headlines Nixon Plays The China Card*
+Event: Nixon Plays The China Card*
+
+Event: Portuguese Empire Crumbles*
+USSR +2 in SE African States [0][2]
+USSR +2 in Angola [2][3]
+
+--- Turn 4, USSR AR1: CIA Created* ---
+[score 7] [defcon 2]
+
+Turn 4, USSR AR1: CIA Created*: Event: CIA Created*
+USSR reveals Summit
+USSR reveals Arms Race
+USSR reveals Olympic Games
+USSR reveals "Lone Gunman"*
+USSR reveals Colonial Rear Guards
+USSR reveals "One Small Step..."
+USSR reveals Allende*
+Coup (1 Ops):
+Target: Nigeria
+SUCCESS: 6 [ + 1 - 2x1 = 5 ]
+USSR -1 in Nigeria [0][0]
+US +4 in Nigeria [4][0]
+US Military Ops to 1
+DEFCON degrades to 2
+
+
+Place Influence (1 Ops):
+USSR +1 in Angola [2][4]
+
+--- Turn 4, US AR1: NATO* ---
+[score 7] [defcon 2]
+
+Turn 4, US AR1: NATO*: Place Influence (4 Ops):
+US +2 in South Africa [4][1]
+US +2 in Mexico [2][0]
+
+--- Turn 4, USSR AR2: Olympic Games ---
+[score 7] [defcon 2]
+
+Turn 4, USSR AR2: Olympic Games: Coup (2 Ops):
+Target: Uruguay
+SUCCESS: 4 [ + 2 - 2x2 = 2 ]
+US -1 in Uruguay [0][0]
+USSR +1 in Uruguay [0][1]
+USSR Military Ops to 2
+
+--- Turn 4, US AR2: UN Intervention ---
+[score 7] [defcon 2]
+
+Turn 4, US AR2: UN Intervention: Event: UN Intervention
+US plays "We Will Bury You"*
+Place Influence (4 Ops):
+US +1 in Saharan States [1][0]
+US +2 in Paraguay [2][0]
+US +1 in Egypt [2][0]
+
+--- Turn 4, USSR AR3: Arms Race ---
+[score 4] [defcon 2]
+
+Turn 4, USSR AR3: Arms Race: Event: Arms Race
+USSR gains 3 VP. Score is US 4.
+
+--- Turn 4, US AR3: Formosan Resolution* ---
+[score 4] [defcon 2]
+
+Turn 4, US AR3: Formosan Resolution*: Realignment (2 Ops):
+Target: Algeria
+USSR rolls 5 (+1) = 6
+US rolls 1 (+2) = 3
+Target: Algeria
+USSR rolls 1 (+1) = 2
+US rolls 1 (+2) = 3
+USSR -1 in Algeria [0][2]
+
+--- Turn 4, USSR AR4: "Lone Gunman"* ---
+[score 4] [defcon 2]
+
+Turn 4, USSR AR4: "Lone Gunman"*: Place Influence (1 Ops):
+USSR +1 in Tunisia [0][2]
+
+--- Turn 4, US AR4: Sadat Expels Soviets* ---
+[score 4] [defcon 2]
+
+Turn 4, US AR4: Sadat Expels Soviets*: Coup (1 Ops):
+Target: SE African States
+SUCCESS: 6 [ + 1 - 2x1 = 5 ]
+USSR -2 in SE African States [0][0]
+US +3 in SE African States [3][0]
+US Military Ops to 2
+
+--- Turn 4, USSR AR5: Summit ---
+[score 4] [defcon 2]
+
+Turn 4, USSR AR5: Summit: Coup (1 Ops):
+Target: Saharan States
+FAILURE: 1 [ + 1 - 2x1 = 0 ]
+USSR Military Ops to 3
+
+--- Turn 4, US AR5: Korean War* ---
+[score 4] [defcon 2]
+
+Turn 4, US AR5: Korean War*: Event: Korean War*
+War in South Korea
+DEFEAT: 1 (-1)  < 4
+USSR Military Ops to 5
+
+Place Influence (2 Ops):
+US +2 in Israel [3][1]
+
+--- Turn 4, USSR AR6: "One Small Step..." ---
+[score 4] [defcon 2]
+
+Turn 4, USSR AR6: "One Small Step...": Place Influence (2 Ops):
+USSR +2 in Saudi Arabia [0][2]
+
+--- Turn 4, US AR6: Panama Canal Returned* ---
+[score 4] [defcon 2]
+
+Turn 4, US AR6: Panama Canal Returned*: Place Influence (1 Ops):
+US +1 in Philippines [2][0]
+
+--- Turn 4, USSR AR7: Colonial Rear Guards ---
+[score 4] [defcon 2]
+
+Turn 4, USSR AR7: Colonial Rear Guards: Space Race (2 Ops):
+Die roll: 6 -- Failed! (Needed 3 or less)
+
+--- Turn 4, US AR7: U2 Incident* ---
+[score 3] [defcon 2]
+
+Turn 4, US AR7: U2 Incident*: Place Influence (3 Ops):
+US +2 in Algeria [2][2]
+
+Event: U2 Incident*
+USSR gains 1 VP. Score is US 3.
+U2 Incident* is now in play.
+
+--- Turn 4, US AR7: U2 Incident* ---
+[score 3] [defcon 3]
+
+
+
+--- Turn 5, both Headline: Southeast Asia Scoring* & Grain Sales To Soviets ---
+[score 2] [defcon 2]
+
+Turn 5, Headline Phase: Southeast Asia Scoring* & Grain Sales To Soviets: DEFCON improves to 3
+USSR Headlines Southeast Asia Scoring*
+US Headlines Grain Sales To Soviets
+Event: Grain Sales To Soviets
+USSR reveals South America Scoring
+USSR reveals South America Scoring from hand
+US returns South America Scoring to USSR
+Coup (2 Ops):
+Target: Angola
+SUCCESS: 5 [ + 2 - 2x1 = 5 ]
+USSR -4 in Angola [2][0]
+US +1 in Angola [3][0]
+US Military Ops to 2
+DEFCON degrades to 2
+
+
+Event: Southeast Asia Scoring*
+USSR gains 1 VP. Score is US 2.
+
+--- Turn 5, USSR AR1: Willy Brandt* ---
+[score 2] [defcon 2]
+
+Turn 5, USSR AR1: Willy Brandt*: Place Influence (2 Ops):
+USSR +2 in Algeria [2][4]
+
+--- Turn 5, US AR1: Africa Scoring ---
+[score 6] [defcon 2]
+
+Turn 5, US AR1: Africa Scoring: Event: Africa Scoring
+US gains 4 VP. Score is US 6.
+
+--- Turn 5, USSR AR2: Our Man in Tehran* ---
+[score 6] [defcon 2]
+
+Turn 5, USSR AR2: Our Man in Tehran*: Event: Our Man in Tehran*
+US discards Vietnam Revolts*
+US discards Nuclear Test Ban
+US discards Missile Envy
+
+Place Influence (2 Ops):
+USSR +1 in Saudi Arabia [0][3]
+USSR +1 in Israel [3][2]
+
+--- Turn 5, US AR2: East European Unrest ---
+[score 6] [defcon 2]
+
+Turn 5, US AR2: East European Unrest: Place Influence (3 Ops):
+US +3 in Israel [6][2]
+
+--- Turn 5, USSR AR3: South America Scoring ---
+[score 11] [defcon 2]
+
+Turn 5, USSR AR3: South America Scoring: Event: South America Scoring
+US gains 5 VP. Score is US 11.
+
+--- Turn 5, US AR3: Brush War ---
+[score 11] [defcon 2]
+
+Turn 5, US AR3: Brush War: Place Influence (3 Ops):
+US +3 in Cuba [3][0]
+
+--- Turn 5, USSR AR4: Defectors ---
+[score 11] [defcon 2]
+
+Turn 5, USSR AR4: Defectors: Space Race (2 Ops):
+Die roll: 4 -- Failed! (Needed 3 or less)
+
+--- Turn 5, US AR4: Socialist Governments ---
+[score 11] [defcon 2]
+
+Turn 5, US AR4: Socialist Governments: Space Race (3 Ops):
+Die roll: 6 -- Failed! (Needed 4 or less)
+
+--- Turn 5, USSR AR5: Cultural Revolution* ---
+[score 11] [defcon 2]
+
+Turn 5, USSR AR5: Cultural Revolution*: Place Influence (3 Ops):
+USSR +2 in Libya [2][2]
+
+--- Turn 5, US AR5: Alliance For Progress* ---
+[score 17] [defcon 2]
+
+Turn 5, US AR5: Alliance For Progress*: Event: Alliance For Progress*
+US gains 6 VP. Score is US 17.
+
+--- Turn 5, USSR AR6: Mideast Scoring ---
+[score 14] [defcon 2]
+
+Turn 5, USSR AR6: Mideast Scoring: Event: Mideast Scoring
+USSR gains 3 VP. Score is US 14.
+
+--- Turn 5, US AR6: Camp David Accords* ---
+[score 15] [defcon 2]
+
+Turn 5, US AR6: Camp David Accords*: Event: Camp David Accords*
+US gains 1 VP. Score is US 15.
+US +1 in Israel [7][2]
+US +1 in Jordan [1][0]
+US +1 in Egypt [3][0]
+Camp David Accords* is now in play.
+
+--- Turn 5, USSR AR7: "Ask Not What Your Country..."* ---
+[score 15] [defcon 2]
+
+Turn 5, USSR AR7: "Ask Not What Your Country..."*: Event: "Ask Not What Your Country..."*
+US discards Quagmire*
+
+Place Influence (3 Ops):
+USSR +2 in Brazil [2][2]
+
+--- Turn 5, US AR7: Brezhnev Doctrine* ---
+[score 15] [defcon 2]
+
+Turn 5, US AR7: Brezhnev Doctrine*: Place Influence (3 Ops):
+US +2 in Canada [4][0]
+US +1 in Guatemala [1][0]
+
+Event: Brezhnev Doctrine*
+Brezhnev Doctrine* is now in play.
+
+--- Turn 5, US AR7: Brezhnev Doctrine* ---
+[score 15] [defcon 3]
+
+Brezhnev Doctrine* is no longer in play.
+
+--- Turn 6, both Headline: Junta & OAS Founded ---
+[score 15] [defcon 2]
+
+Turn 6, Headline Phase: Junta & OAS Founded: DEFCON improves to 3
+USSR Headlines Junta
+US Headlines OAS Founded
+Event: Junta
+USSR +2 in Mexico [2][2]
+Coup (2 Ops):
+Target: Mexico
+SUCCESS: 4 [ + 2 - 2x2 = 2 ]
+US -2 in Mexico [0][2]
+DEFCON degrades to 2
+
+
+Event: OAS Founded
+US +2 in Mexico [2][2]
+
+--- Turn 6, USSR AR1: SALT Negotiations* ---
+[score 15] [defcon 2]
+
+Turn 6, USSR AR1: SALT Negotiations*: Place Influence (3 Ops):
+USSR +2 in Mexico [2][4]
+USSR +1 in Brazil [2][3]
+
+--- Turn 6, US AR1: Cuban Missile Crisis* ---
+[score 15] [defcon 2]
+
+Turn 6, US AR1: Cuban Missile Crisis*: Realignment (3 Ops):
+Target: Mexico
+USSR rolls 6 (+1) = 7
+US rolls 6 (+2) = 8
+USSR -1 in Mexico [2][3]
+Target: Mexico
+USSR rolls 4 (+1) = 5
+US rolls 1 (+2) = 3
+US -2 in Mexico [0][3]
+Target: Mexico
+USSR rolls 2 (+1) = 3
+US rolls 3 (+2) = 5
+USSR -2 in Mexico [0][1]
+
+--- Turn 6, USSR AR2: Latin American Death Squads ---
+[score 15] [defcon 2]
+
+Turn 6, USSR AR2: Latin American Death Squads: Place Influence (2 Ops):
+USSR +1 in Mexico [0][2]
+USSR +1 in Brazil [2][4]
+
+--- Turn 6, US AR2: Nuclear Subs* ---
+[score 15] [defcon 2]
+
+Turn 6, US AR2: Nuclear Subs*: Realignment (2 Ops):
+Target: Mexico
+USSR rolls 4 (+1) = 5
+US rolls 1 (+2) = 3
+Target: Mexico
+USSR rolls 5 (+1) = 6
+US rolls 1 (+2) = 3
+
+--- Turn 6, USSR AR3: Che ---
+[score 15] [defcon 2]
+
+Turn 6, USSR AR3: Che: Event: Che
+Coup (3 Ops):
+Target: Guatemala
+SUCCESS: 1 [ + 3 - 2x1 = 2 ]
+US -1 in Guatemala [0][0]
+USSR +1 in Guatemala [0][1]
+USSR Military Ops to 3
+
+Coup (3 Ops):
+Target: Saharan States
+SUCCESS: 2 [ + 3 - 2x1 = 3 ]
+US -1 in Saharan States [0][0]
+USSR +2 in Saharan States [0][2]
+USSR Military Ops to 5
+
+--- Turn 6, US AR3: ABM Treaty ---
+[score 15] [defcon 2]
+
+Turn 6, US AR3: ABM Treaty: Event: ABM Treaty
+DEFCON improves to 3
+Coup (4 Ops):
+Target: Mexico
+SUCCESS: 6 [ + 4 - 2x2 = 6 ]
+USSR -2 in Mexico [0][0]
+US +4 in Mexico [4][0]
+US Military Ops to 4
+DEFCON degrades to 2
+
+
+US +1 in Brazil [3][4]
+
+--- Turn 6, USSR AR4: Allende* ---
+[score 15] [defcon 2]
+
+Turn 6, USSR AR4: Allende*: Place Influence (1 Ops):
+USSR +1 in Brazil [3][5]
+
+--- Turn 6, US AR4: Kitchen Debates* ---
+[score 19] [defcon 2]
+
+Turn 6, US AR4: Kitchen Debates*: Event: Kitchen Debates*
+US gains 2 VP. Score is US 19.
+
+--- Turn 6, USSR AR5: The Voice of America ---
+[score 19] [defcon 2]
+
+Turn 6, USSR AR5: The Voice of America: Space Race (2 Ops):
+Die roll: 6 -- Failed! (Needed 3 or less)
+
+--- Turn 6, US AR5: South African Unrest ---
+[score 19] [defcon 2]
+
+Turn 6, US AR5: South African Unrest: Space Race (2 Ops):
+Die roll: 2 -- Success! (Needed 4 or less)
+US advances to 2 in the Space Race.
+
+--- Turn 6, USSR AR6: Muslim Revolution ---
+[score 19] [defcon 2]
+
+Turn 6, USSR AR6: Muslim Revolution: Event: Muslim Revolution
+US -3 in Egypt [0][0]
+US -2 in Libya [0][2]
+
+--- Turn 6, US AR6: Ussuri River Skirmish* ---
+[score 19] [defcon 2]
+
+Turn 6, US AR6: Ussuri River Skirmish*: Event: Ussuri River Skirmish*
+US +2 in Thailand [3][4]
+US +2 in South Korea [3][4]
+
+--- Turn 6, USSR AR7: Arab-Israeli War ---
+[score 19] [defcon 2]
+
+Turn 6, USSR AR7: Arab-Israeli War: Place Influence (2 Ops):
+USSR +2 in South Korea [3][6]
+
+--- Turn 6, US AR7: Bear Trap* ---
+[score 19] [defcon 2]
+
+Turn 6, US AR7: Bear Trap*: Event: Bear Trap*
+Bear Trap* is now in play.
+
+--- Turn 6, US AR7: Bear Trap* ---
+[score 19] [defcon 3]
+
+
+
+--- Turn 7, both Headline: Missile Envy & Defectors ---
+[score 19] [defcon 3]
+
+Turn 7, Headline Phase: Missile Envy & Defectors: DEFCON improves to 3
+*RESHUFFLE*
+USSR Headlines Missile Envy
+US Headlines Defectors
+Event: Defectors
+
+--- Turn 7, USSR AR1: Puppet Governments* ---
+[score 19] [defcon 3]
+
+Turn 7, USSR AR1: Puppet Governments*: USSR discards Puppet Governments*
+Trap Roll: 2 <= 4 -- Trap Escaped
+Bear Trap* is no longer in play.
+
+--- Turn 7, US AR1: Central America Scoring ---
+[score 19] [defcon 3]
+
+Turn 7, US AR1: Central America Scoring:
+

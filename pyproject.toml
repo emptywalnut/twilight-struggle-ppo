@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "struggle-ai"
+version = "0.1.0"
+description = "Twilight Struggle PPO environment with a headless Saito rules bridge and RLlib wrapper."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "gymnasium>=0.28",
+]
+
+[project.optional-dependencies]
+train = [
+  "ray[rllib]>=2.9",
+  "torch>=2.1",
+  "wandb>=0.17",
+]
+test = [
+  "pytest>=8",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["struggle_ai*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

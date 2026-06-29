@@ -1,0 +1,171 @@
+REPLAY 163
+DATA_SOURCE=unique-turns
+
+--- Turn 1, both Headline: Vietnam Revolts* & Olympic Games ---
+[score -2] [defcon 5]
+
+SETUP: Grassmann bids 2 Influence for USSR
+Voice of Lamerica bids 1 Influence for USSR
+Grassmann will play as USSR.
+Voice of Lamerica will play as USA.
+Additional Influence from bidding: US +2
+Scenario: Standard
+Optional Cards Added
+Time per Player: 7 Days
+USSR +1 in Austria [0][1]
+USSR +1 in East Germany [0][4]
+USSR +4 in Poland [0][4]
+US +4 in West Germany [4][0]
+US +4 in Italy [4][0]
+US +1 in Iran [2][0]
+
+Turn 1, Headline Phase: Vietnam Revolts* & Olympic Games: USSR Headlines Vietnam Revolts*
+US Headlines Olympic Games
+Event: Olympic Games
+USSR chooses to participate in the Olympics
+USSR gains 2 VP. Score is USSR 2.
+
+Event: Vietnam Revolts*
+USSR +2 in Vietnam [0][2]
+Vietnam Revolts* is now in play.
+
+--- Turn 2, both Headline: CIA Created* & Red Scare/Purge ---
+[score -6] [defcon 2]
+
+Turn 2, Headline Phase: CIA Created* & Red Scare/Purge: DEFCON improves to 3
+USSR Headlines CIA Created*
+US Headlines Red Scare/Purge
+Event: Red Scare/Purge
+Red Scare/Purge is now in play.
+
+Event: CIA Created*
+USSR reveals NORAD*
+USSR reveals Arab-Israeli War
+USSR reveals Five Year Plan
+USSR reveals Defectors
+USSR reveals Duck and Cover
+USSR reveals Asia Scoring
+USSR reveals COMECON*
+Coup (1 Ops):
+Target: Iran
+FAILURE: 2 [ + 1 - 2x2 = -1 ]
+US Military Ops to 1
+DEFCON degrades to 2
+
+--- Turn 3, both Headline: Nasser* & Olympic Games ---
+[score -4] [defcon 3]
+
+Turn 3, Headline Phase: Nasser* & Olympic Games: DEFCON improves to 3
+*RESHUFFLE*
+USSR Headlines Nasser*
+US Headlines Olympic Games
+Event: Olympic Games
+USSR chooses to participate in the Olympics
+US gains 2 VP. Score is USSR 4.
+
+Event: Nasser*
+USSR +2 in Egypt [2][2]
+US -1 in Egypt [1][2]
+
+--- Turn 4, both Headline: ABM Treaty & Ussuri River Skirmish* ---
+[score 2] [defcon 3]
+
+Turn 4, Headline Phase: ABM Treaty & Ussuri River Skirmish*: DEFCON improves to 3
+USSR Headlines ABM Treaty
+US Headlines Ussuri River Skirmish*
+Event: ABM Treaty
+DEFCON improves to 4
+Coup (4 Ops):
+Target: Thailand
+SUCCESS: 1 [ + 4 - 2x2 = 1 ]
+US -1 in Thailand [2][0]
+USSR Military Ops to 4
+DEFCON degrades to 3
+
+
+Event: Ussuri River Skirmish*
+US +2 in North Korea [2][4]
+US +2 in Pakistan [2][3]
+
+--- Turn 5, both Headline: Allende* & Duck and Cover ---
+[score 1] [defcon 2]
+
+Turn 5, Headline Phase: Allende* & Duck and Cover: DEFCON improves to 3
+USSR Headlines Allende*
+US Headlines Duck and Cover
+Event: Duck and Cover
+DEFCON degrades to 2
+US gains 3 VP. Score is US 1.
+
+Event: Allende*
+USSR +2 in Chile [3][2]
+
+--- Turn 6, both Headline: Portuguese Empire Crumbles* & Red Scare/Purge ---
+[score 2] [defcon 3]
+
+Turn 6, Headline Phase: Portuguese Empire Crumbles* & Red Scare/Purge: DEFCON improves to 3
+USSR Headlines Portuguese Empire Crumbles*
+US Headlines Red Scare/Purge
+Event: Red Scare/Purge
+Red Scare/Purge is now in play.
+
+Event: Portuguese Empire Crumbles*
+USSR +2 in SE African States [0][2]
+USSR +2 in Angola [1][2]
+
+--- Turn 7, both Headline: Liberation Theology & Colonial Rear Guards ---
+[score 2] [defcon 3]
+
+Turn 7, Headline Phase: Liberation Theology & Colonial Rear Guards: DEFCON improves to 3
+*RESHUFFLE*
+USSR Headlines Liberation Theology
+US Headlines Colonial Rear Guards
+Event: Colonial Rear Guards
+US +1 in Nigeria [2][0]
+US +1 in Zaire [1][3]
+US +1 in Zimbabwe [1][0]
+US +1 in Angola [5][2]
+
+Event: Liberation Theology
+USSR +2 in Mexico [2][2]
+USSR +1 in Cuba [0][1]
+
+--- Turn 8, both Headline: ABM Treaty & Defectors ---
+[score 8] [defcon 3]
+
+Turn 8, Headline Phase: ABM Treaty & Defectors: DEFCON improves to 3
+USSR Headlines ABM Treaty
+US Headlines Defectors
+Event: Defectors
+
+--- Turn 9, both Headline: Junta & Duck and Cover ---
+[score 10] [defcon 2]
+
+Turn 9, Headline Phase: Junta & Duck and Cover: DEFCON improves to 3
+USSR Headlines Junta
+US Headlines Duck and Cover
+Event: Duck and Cover
+DEFCON degrades to 2
+US gains 3 VP. Score is US 10.
+
+Event: Junta
+USSR +2 in Argentina [4][4]
+Coup (2 Ops):
+Target: Uruguay
+SUCCESS: 6 [ + 2 - 2x2 = 4 ]
+US -2 in Uruguay [0][0]
+USSR +2 in Uruguay [0][2]
+
+--- Turn 10, both Headline: Red Scare/Purge & AWACS Sale To Saudis* ---
+[score 7] [defcon 3]
+
+Turn 10, Headline Phase: Red Scare/Purge & AWACS Sale To Saudis*: DEFCON improves to 3
+USSR Headlines Red Scare/Purge
+US Headlines AWACS Sale To Saudis*
+Event: Red Scare/Purge
+Red Scare/Purge is now in play.
+
+Event: AWACS Sale To Saudis*
+US +2 in Saudi Arabia [2][3]
+AWACS Sale To Saudis* is now in play.
+

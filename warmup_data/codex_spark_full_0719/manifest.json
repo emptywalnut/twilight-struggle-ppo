@@ -1,0 +1,16 @@
+{
+  "format": "ts_warmup_manifest_v1",
+  "ruleset": "optional_us_plus_2",
+  "created_at": "2026-06-04",
+  "game_files": [
+    "games/part-00000.jsonl"
+  ],
+  "text_log_dir": "text",
+  "notes": "Converted from scrape/turn_text using gpt-5.3-codex-spark in codex batch script.",
+  "stats": {
+    "attempted": 139,
+    "accepted": 38,
+    "failed": 101,
+    "skipped": 38
+  }
+}

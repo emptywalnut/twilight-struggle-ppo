@@ -1,0 +1,28 @@
+{
+  "id": "optional_us_plus_2",
+  "saito_options": {
+    "deck": "optional",
+    "usbonus": 2
+  },
+  "included_optional_cards": [
+    "defectors",
+    "cambridge",
+    "specialrelation",
+    "norad",
+    "che",
+    "tehran",
+    "iraniraq",
+    "yuri",
+    "awacs"
+  ],
+  "included_core_examples": [
+    "muslimrevolution"
+  ],
+  "excluded_card_families": [
+    "saito",
+    "community",
+    "end_of_history",
+    "cold_war_crazies"
+  ]
+}
+

@@ -1,0 +1,31 @@
+REPLAY 076
+DATA_SOURCE=all-turns
+
+--- Turn 1, both Headline: Red Scare/Purge & East European Unrest ---
+[score 0] [defcon 5]
+
+SETUP: Player will play as USSR.
+AI Player will play as USA.
+Handicap influence: US +2
+Scenario: Standard
+USSR +1 in East Germany [0][4]
+USSR +4 in Poland [0][4]
+USSR +1 in Austria [0][1]
+US +3 in Italy [3][0]
+US +4 in West Germany [4][0]
+US +1 in Iran [2][0]
+US +1 in South Korea [2][0]
+
+Turn 1, Headline Phase: Red Scare/Purge & East European Unrest: USSR Headlines Red Scare/Purge
+US Headlines East European Unrest
+Event: Red Scare/Purge
+Red Scare/Purge is now in play.
+
+Event: East European Unrest
+USSR -1 in East Germany [0][3]
+USSR -1 in Poland [0][3]
+USSR -1 in Austria [0][0]
+
+
+Turn 1, USSR AR1
+
