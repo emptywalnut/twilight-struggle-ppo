@@ -20,6 +20,8 @@ except ImportError:
 from struggle_ai.bridge_client import BridgeError, TwilightBridgeClient
 from struggle_ai.features import (
     ACTION_FEATURES,
+    CARD_HISTORY_FEATURES,
+    CARD_HISTORY_LENGTH,
     CARD_FEATURES,
     COUNTRY_FEATURES,
     EVENT_FEATURES,
@@ -70,6 +72,7 @@ class TwilightStruggleEnv(gym.Env):
         self.reward_shaping_scale = float(self.config.get("reward_shaping_scale", 1.0))
         self.turn_vp_reward_scale = float(self.config.get("turn_vp_reward_scale", 0.05))
         self.nuke_death_penalty = float(self.config.get("nuke_death_penalty", 0.0))
+        self.scoring_card_held_penalty = float(self.config.get("scoring_card_held_penalty", 0.0))
         self.high_stability_coup_penalty = float(self.config.get("high_stability_coup_penalty", 0.0))
         self.low_stability_warzone_coup_reward = float(self.config.get("low_stability_warzone_coup_reward", 0.0))
         self.headline_opponent_event_penalty = float(self.config.get("headline_opponent_event_penalty", 0.0))
@@ -101,6 +104,7 @@ class TwilightStruggleEnv(gym.Env):
         self.episode_actions: list[dict[str, Any]] = []
         self.episode_filtered_actions: list[dict[str, Any]] = []
         self.history: list[dict[str, Any]] = []
+        self.card_history: list[dict[str, Any]] = []
         self.episode_start: dict[str, Any] | None = None
         self.episode_reward_components: dict[str, float] = {}
         self.episode_side_rewards: dict[str, float] = {"us": 0.0, "ussr": 0.0}
@@ -128,6 +132,8 @@ class TwilightStruggleEnv(gym.Env):
                 "history_turn_ar": spaces.Box(-np.inf, np.inf, shape=(HISTORY_LENGTH, 2), dtype=np.float32),
                 "history_vp_defcon": spaces.Box(-np.inf, np.inf, shape=(HISTORY_LENGTH, 2), dtype=np.float32),
                 "history_mask": spaces.Box(0.0, 1.0, shape=(HISTORY_LENGTH,), dtype=np.float32),
+                "card_history": spaces.Box(-np.inf, np.inf, shape=(CARD_HISTORY_LENGTH, CARD_HISTORY_FEATURES), dtype=np.float32),
+                "card_history_mask": spaces.Box(0.0, 1.0, shape=(CARD_HISTORY_LENGTH,), dtype=np.float32),
             }
         )
 
@@ -138,6 +144,7 @@ class TwilightStruggleEnv(gym.Env):
         self.episode_actions = []
         self.episode_filtered_actions = []
         self.history = []
+        self.card_history = []
         self.episode_reward_components = {}
         self.episode_side_rewards = {"us": 0.0, "ussr": 0.0}
         self.episode_seed = int(seed) if seed is not None else self.base_seed + self.worker_seed_offset + self.episode_index
@@ -239,6 +246,7 @@ class TwilightStruggleEnv(gym.Env):
             }
         )
         self.append_history_entry(before, acting_side, selected_action_features)
+        self.append_or_update_card_history_entry(previous_obs, before, after, acting_side, selected_action)
         raw_rewards = result.get("reward") or {}
         terminal_rewards = {
             "us": self.terminal_reward_scale * float(raw_rewards.get("us", 0.0)),
@@ -246,9 +254,14 @@ class TwilightStruggleEnv(gym.Env):
         }
         terminal_reward = terminal_rewards.get(acting_side, 0.0)
         nuke_death_penalty = self.terminal_nuke_death_penalty(terminal_reward, result)
+        scoring_card_held_penalty = self.terminal_scoring_card_held_penalty(terminal_reward, result)
         nuke_death_penalties = {
             "us": self.terminal_nuke_death_penalty(terminal_rewards["us"], result),
             "ussr": self.terminal_nuke_death_penalty(terminal_rewards["ussr"], result),
+        }
+        scoring_card_held_penalties = {
+            "us": self.terminal_scoring_card_held_penalty(terminal_rewards["us"], result),
+            "ussr": self.terminal_scoring_card_held_penalty(terminal_rewards["ussr"], result),
         }
         vp_delta_rewards = self.vp_delta_rewards(before, after)
         vp_delta_reward = vp_delta_rewards.get(acting_side, 0.0)
@@ -274,6 +287,7 @@ class TwilightStruggleEnv(gym.Env):
         reward = (
             terminal_reward
             + nuke_death_penalty
+            + scoring_card_held_penalty
             + vp_delta_reward
             + coup_target_reward
             + headline_opponent_event_reward
@@ -284,6 +298,7 @@ class TwilightStruggleEnv(gym.Env):
         step_reward_components = {
             "terminal_reward": terminal_reward,
             "nuke_death_penalty": nuke_death_penalty,
+            "scoring_card_held_penalty": scoring_card_held_penalty,
             "vp_delta_reward": vp_delta_reward,
             "coup_target_reward": coup_target_reward,
             "headline_opponent_event_reward": headline_opponent_event_reward,
@@ -295,8 +310,18 @@ class TwilightStruggleEnv(gym.Env):
         for key, value in step_reward_components.items():
             self.episode_reward_components[key] = self.episode_reward_components.get(key, 0.0) + float(value)
         side_step_rewards = {
-            "us": terminal_rewards["us"] + nuke_death_penalties["us"] + side_delta_rewards.get("us", 0.0),
-            "ussr": terminal_rewards["ussr"] + nuke_death_penalties["ussr"] + side_delta_rewards.get("ussr", 0.0),
+            "us": (
+                terminal_rewards["us"]
+                + nuke_death_penalties["us"]
+                + scoring_card_held_penalties["us"]
+                + side_delta_rewards.get("us", 0.0)
+            ),
+            "ussr": (
+                terminal_rewards["ussr"]
+                + nuke_death_penalties["ussr"]
+                + scoring_card_held_penalties["ussr"]
+                + side_delta_rewards.get("ussr", 0.0)
+            ),
         }
         side_step_rewards[acting_side] += coup_target_reward + headline_opponent_event_reward + defcon_risk_action_reward
         for side, side_reward in side_step_rewards.items():
@@ -314,6 +339,8 @@ class TwilightStruggleEnv(gym.Env):
             "terminal_rewards": terminal_rewards,
             "nuke_death_penalty": nuke_death_penalty,
             "nuke_death_penalties": nuke_death_penalties,
+            "scoring_card_held_penalty": scoring_card_held_penalty,
+            "scoring_card_held_penalties": scoring_card_held_penalties,
             "vp_delta_reward": vp_delta_reward,
             "vp_delta_rewards": vp_delta_rewards,
             "coup_target_reward": coup_target_reward,
@@ -386,7 +413,7 @@ class TwilightStruggleEnv(gym.Env):
         self.reward_shaping_scale = float(scale)
 
     def obs_with_history(self, obs: dict[str, Any]) -> dict[str, Any]:
-        return {**obs, "history": self.history}
+        return {**obs, "history": self.history, "card_history": self.card_history}
 
     def selected_action_features(self, action_index: int) -> list[float]:
         if not self.last_obs:
@@ -407,6 +434,92 @@ class TwilightStruggleEnv(gym.Env):
         )
         if len(self.history) > HISTORY_LENGTH:
             self.history = self.history[-HISTORY_LENGTH:]
+
+    def append_or_update_card_history_entry(
+        self,
+        obs: dict[str, Any] | None,
+        before: dict[str, Any],
+        after: dict[str, Any],
+        acting_side: str,
+        action: dict[str, Any],
+    ) -> None:
+        if not obs:
+            return
+        decision = str(action.get("decision") or "").lower()
+        value = str(action.get("value") or "").lower()
+        if decision in {"country_click", "country_mouseup"}:
+            return
+        card_id = self.action_card_id(obs, action)
+        if not card_id:
+            return
+
+        mode = self.card_history_mode(obs, action, card_id)
+        phase = str(obs.get("phase") or "")
+        target_idx = self.find_card_history_entry(acting_side, card_id, before)
+        if target_idx is None:
+            target_idx = len(self.card_history)
+            self.card_history.append(
+                {
+                    "side": acting_side,
+                    "turn": before.get("turn", 0),
+                    "action_round": before.get("action_round", 0),
+                    "phase": phase,
+                    "card": card_id,
+                    "vp_before": before.get("vp", 0),
+                    "defcon_before": before.get("defcon", 0),
+                    "vp_after": after.get("vp", before.get("vp", 0)),
+                    "defcon_after": after.get("defcon", before.get("defcon", 0)),
+                    "modes": [],
+                    "completed": False,
+                    "removed": False,
+                }
+            )
+        entry = self.card_history[target_idx]
+        modes = list(entry.get("modes") or [])
+        if mode and mode not in modes:
+            modes.append(mode)
+        if value in {"before_ops", "after_ops"} and value not in modes:
+            modes.append(value)
+        if "headline" in str(action.get("prompt") or obs.get("prompt") or "").lower() and "headline" not in modes:
+            modes.append("headline")
+        entry["modes"] = modes
+        entry["vp_after"] = after.get("vp", entry.get("vp_after", entry.get("vp_before", 0)))
+        entry["defcon_after"] = after.get("defcon", entry.get("defcon_after", entry.get("defcon_before", 0)))
+        if value in {"event", "ops", "space", "discard"}:
+            entry["completed"] = True
+        if card_id in set((obs.get("removed") or [])):
+            entry["removed"] = True
+        if len(self.card_history) > CARD_HISTORY_LENGTH:
+            self.card_history = self.card_history[-CARD_HISTORY_LENGTH:]
+
+    def find_card_history_entry(self, acting_side: str, card_id: str, before: dict[str, Any]) -> int | None:
+        turn = before.get("turn", 0)
+        action_round = before.get("action_round", 0)
+        for idx in range(len(self.card_history) - 1, -1, -1):
+            entry = self.card_history[idx]
+            if (
+                entry.get("side") == acting_side
+                and entry.get("card") == card_id
+                and entry.get("turn") == turn
+                and entry.get("action_round") == action_round
+            ):
+                return idx
+        return None
+
+    def card_history_mode(self, obs: dict[str, Any], action: dict[str, Any], card_id: str) -> str:
+        value = str(action.get("value") or "").lower()
+        prompt = str(action.get("prompt") or obs.get("prompt") or "").lower()
+        if value in {"event", "ops", "space", "before_ops", "after_ops", "discard"}:
+            return value
+        if "headline" in prompt:
+            return "headline"
+        if "space" in prompt:
+            return "space"
+        if "discard" in prompt:
+            return "discard"
+        if card_id:
+            return "selected"
+        return ""
 
     def filtered_legal_actions(self, obs: dict[str, Any], legal_actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if self.defcon_suicide_mode != "hard_filter":
@@ -969,6 +1082,18 @@ class TwilightStruggleEnv(gym.Env):
         if terminal_reward >= 0:
             return 0.0
         return -self.nuke_death_penalty
+
+    def terminal_scoring_card_held_penalty(self, terminal_reward: float, result: dict[str, Any]) -> float:
+        if self.scoring_card_held_penalty == 0.0:
+            return 0.0
+        if not result.get("done"):
+            return 0.0
+        reason = str((result.get("info") or {}).get("terminal_reason") or "")
+        if reason != "scoring card held":
+            return 0.0
+        if terminal_reward >= 0:
+            return 0.0
+        return -self.scoring_card_held_penalty
 
 
 class TwilightStruggleMultiAgentEnv(MultiAgentEnv):

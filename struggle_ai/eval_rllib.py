@@ -33,10 +33,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hidden", type=int, default=256)
     parser.add_argument("--model-arch", choices=["feedforward", "transformer_history"], default="feedforward")
     parser.add_argument("--history-layers", type=int, default=2)
+    parser.add_argument("--card-history-layers", type=int, default=2)
     parser.add_argument("--history-attention-heads", type=int, default=4)
     parser.add_argument("--history-dropout", type=float, default=0.1)
     parser.add_argument("--graph-layers", type=int, default=2)
-    parser.add_argument("--graph-neighbor-hops", type=int, default=5)
+    parser.add_argument("--graph-neighbor-hops", type=int, default=2)
     parser.add_argument("--heuristic-prior-scale", type=float, default=2.0)
     parser.add_argument("--setup-heuristic-prior-scale", type=float, default=0.0)
     parser.add_argument("--policy-temperature", type=float, default=1.0)
@@ -71,6 +72,7 @@ def build_algo(args: argparse.Namespace) -> Any:
                     "hidden": args.hidden,
                     "model_arch": args.model_arch,
                     "history_layers": args.history_layers,
+                    "card_history_layers": args.card_history_layers,
                     "history_attention_heads": args.history_attention_heads,
                     "history_dropout": args.history_dropout,
                     "graph_layers": args.graph_layers,

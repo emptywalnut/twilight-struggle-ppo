@@ -13,6 +13,7 @@ from struggle_ai.env import TwilightStruggleEnv, TwilightStruggleMultiAgentEnv
 from struggle_ai.features import encode_observation
 from struggle_ai.rllib_masked_model import register_masked_model
 from struggle_ai.train_rllib import (
+    SHARED_POLICY_ID,
     US_POLICY_ID,
     USSR_POLICY_ID,
     checkpoint_policy_ids,
@@ -36,7 +37,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--load-us-policy-from", type=Path, default=None)
     parser.add_argument("--load-ussr-policy-from", type=Path, default=None)
     parser.add_argument("--multi-agent", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--policies-to-train", default="us,ussr", help="Comma list: us,ussr.")
+    parser.add_argument("--policy-sharing", choices=["split", "unified"], default="split")
+    parser.add_argument("--policies-to-train", default=None, help="Comma list: us,ussr,shared. Defaults to all trainable policies.")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-4)
@@ -47,10 +49,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hidden", type=int, default=256)
     parser.add_argument("--model-arch", choices=["feedforward", "transformer_history"], default="feedforward")
     parser.add_argument("--history-layers", type=int, default=2)
+    parser.add_argument("--card-history-layers", type=int, default=2)
     parser.add_argument("--history-attention-heads", type=int, default=4)
     parser.add_argument("--history-dropout", type=float, default=0.05)
     parser.add_argument("--graph-layers", type=int, default=2)
-    parser.add_argument("--graph-neighbor-hops", type=int, default=5)
+    parser.add_argument("--graph-neighbor-hops", type=int, default=2)
     parser.add_argument("--heuristic-prior-scale", type=float, default=2.0)
     parser.add_argument("--setup-heuristic-prior-scale", type=float, default=0.0)
     parser.add_argument("--policy-temperature", type=float, default=1.0)
@@ -76,15 +79,37 @@ class WarmupSample:
     step: int
 
 
-def policy_id_for_side(side: str, multi_agent: bool) -> str:
+def policy_id_for_side(side: str, multi_agent: bool, policy_sharing: str = "split") -> str:
     if not multi_agent:
         return "default_policy"
+    if policy_sharing == "unified":
+        return SHARED_POLICY_ID
     return US_POLICY_ID if side == "us" else USSR_POLICY_ID
 
 
-def parse_policies(raw: str, multi_agent: bool) -> set[str]:
+def parse_policies(raw: str | None, multi_agent: bool, policy_sharing: str = "split") -> set[str]:
     if not multi_agent:
         return {"default_policy"}
+    if policy_sharing == "unified":
+        if raw is None:
+            return {SHARED_POLICY_ID}
+        aliases = {
+            "shared": SHARED_POLICY_ID,
+            "shared_policy": SHARED_POLICY_ID,
+            "unified": SHARED_POLICY_ID,
+            "both": SHARED_POLICY_ID,
+            "us": SHARED_POLICY_ID,
+            "ussr": SHARED_POLICY_ID,
+            "us_policy": SHARED_POLICY_ID,
+            "ussr_policy": SHARED_POLICY_ID,
+        }
+        items = [item.strip().lower() for item in raw.split(",") if item.strip()]
+        unknown = [item for item in items if item not in aliases]
+        if unknown:
+            raise ValueError(f"unknown --policies-to-train entries: {unknown}")
+        return {aliases[item] for item in items} or {SHARED_POLICY_ID}
+    if raw is None:
+        return {US_POLICY_ID, USSR_POLICY_ID}
     aliases = {
         "us": US_POLICY_ID,
         "ussr": USSR_POLICY_ID,
@@ -330,7 +355,7 @@ def collect_direct_record_samples(
                 obs={key: np.asarray(value).copy() for key, value in encoded.items()},
                 target=int(idx),
                 side=side,
-                policy_id=policy_id_for_side(side, args.multi_agent),
+                policy_id=policy_id_for_side(side, args.multi_agent, args.policy_sharing),
                 weight=sample_weight(entry, args),
                 game_id=game_id,
                 step=int(entry.get("step") or offset),
@@ -407,7 +432,7 @@ def collect_samples(args: argparse.Namespace) -> tuple[list[WarmupSample], list[
                         )
 
                     side = actual_side or expected_side
-                    policy_id = policy_id_for_side(side, args.multi_agent)
+                    policy_id = policy_id_for_side(side, args.multi_agent, args.policy_sharing)
                     samples.append(
                         WarmupSample(
                             obs={key: np.asarray(value).copy() for key, value in obs.items()},
@@ -474,6 +499,7 @@ def build_algorithm(args: argparse.Namespace):
                     "hidden": args.hidden,
                     "model_arch": args.model_arch,
                     "history_layers": args.history_layers,
+                    "card_history_layers": args.card_history_layers,
                     "history_attention_heads": args.history_attention_heads,
                     "history_dropout": args.history_dropout,
                     "graph_layers": args.graph_layers,
@@ -486,10 +512,21 @@ def build_algorithm(args: argparse.Namespace):
         )
     )
     if args.multi_agent:
+        if args.policy_sharing == "unified":
+            policies = {SHARED_POLICY_ID: policy_spec}
+
+            def mapping_fn(agent_id, episode, worker, **kwargs):
+                return SHARED_POLICY_ID
+        else:
+            policies = {US_POLICY_ID: policy_spec, USSR_POLICY_ID: policy_spec}
+
+            def mapping_fn(agent_id, episode, worker, **kwargs):
+                return US_POLICY_ID if agent_id == "us" else USSR_POLICY_ID
+
         config = config.multi_agent(
-            policies={US_POLICY_ID: policy_spec, USSR_POLICY_ID: policy_spec},
-            policy_mapping_fn=lambda agent_id, episode, worker, **kwargs: US_POLICY_ID if agent_id == "us" else USSR_POLICY_ID,
-            policies_to_train=sorted(parse_policies(args.policies_to_train, True)),
+            policies=policies,
+            policy_mapping_fn=mapping_fn,
+            policies_to_train=sorted(parse_policies(args.policies_to_train, True, args.policy_sharing)),
         )
     algo = config.build()
     return algo
@@ -498,6 +535,8 @@ def build_algorithm(args: argparse.Namespace):
 def checkpoint_weights(path: Path, multi_agent: bool) -> dict[str, dict[str, Any]]:
     policy_ids = checkpoint_policy_ids(path)
     if multi_agent:
+        if SHARED_POLICY_ID in policy_ids or (path / "policies" / SHARED_POLICY_ID).exists():
+            return {SHARED_POLICY_ID: load_policy_weights(path, SHARED_POLICY_ID)}
         if US_POLICY_ID in policy_ids and USSR_POLICY_ID in policy_ids:
             return {
                 US_POLICY_ID: load_policy_weights(path, US_POLICY_ID),
@@ -546,7 +585,16 @@ def initialize_algorithm(algo: Any, args: argparse.Namespace) -> None:
     if args.restore_from:
         path = args.restore_from.expanduser().resolve()
         policy_ids = checkpoint_policy_ids(path)
-        if args.multi_agent and use_partial_warmstart():
+        if args.multi_agent and args.policy_sharing == "unified":
+            weights = checkpoint_weights(path, True)
+            if SHARED_POLICY_ID in weights:
+                set_policy_weights(SHARED_POLICY_ID, weights[SHARED_POLICY_ID], path, "restore_shared_policy")
+            elif US_POLICY_ID in weights:
+                set_policy_weights(SHARED_POLICY_ID, weights[US_POLICY_ID], path, "restore_us_into_shared_policy")
+            else:
+                raise RuntimeError(f"no warmstartable shared policy found in {path}")
+            print(f"restored_from={path}", flush=True)
+        elif args.multi_agent and use_partial_warmstart():
             weights = checkpoint_weights(path, True)
             if US_POLICY_ID in weights:
                 set_policy_weights(US_POLICY_ID, weights[US_POLICY_ID], path, "restore_us_policy")
@@ -561,7 +609,10 @@ def initialize_algorithm(algo: Any, args: argparse.Namespace) -> None:
             set_policy_weights(USSR_POLICY_ID, weights[USSR_POLICY_ID], path, "restore_ussr_policy")
         else:
             algo.restore(str(path))
-        print(f"restored_from={path}", flush=True)
+        if not (args.multi_agent and args.policy_sharing == "unified"):
+            print(f"restored_from={path}", flush=True)
+    if args.multi_agent and args.policy_sharing == "unified" and (args.load_us_policy_from or args.load_ussr_policy_from):
+        raise SystemExit("--load-us-policy-from/--load-ussr-policy-from are split-policy warmstarts; use distillation data for unified warmup")
     if args.multi_agent and args.load_us_policy_from:
         path = args.load_us_policy_from.expanduser().resolve()
         set_policy_weights(US_POLICY_ID, checkpoint_weights(path, True)[US_POLICY_ID], path, "us_policy")
@@ -588,7 +639,7 @@ def train_bc(algo: Any, samples: list[WarmupSample], args: argparse.Namespace) -
     import torch
     import torch.nn.functional as F
 
-    trainable = parse_policies(args.policies_to_train, args.multi_agent)
+    trainable = parse_policies(args.policies_to_train, args.multi_agent, args.policy_sharing)
     grouped: dict[str, list[WarmupSample]] = {}
     for sample in samples:
         if sample.policy_id in trainable:

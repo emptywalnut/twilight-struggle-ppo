@@ -17,6 +17,7 @@ from struggle_ai.rllib_masked_model import register_masked_model
 
 
 NUKE_TERMINAL_REASONS = {"nuclear_war", "thermonuclear war", "Cuban Missile Crisis"}
+SHARED_POLICY_ID = "shared_policy"
 US_POLICY_ID = "us_policy"
 USSR_POLICY_ID = "ussr_policy"
 RANDOM_LEGAL_POLICY_ID = "random_legal_policy"
@@ -31,13 +32,37 @@ LEAGUE_DEFAULT_SAMPLING = {
 }
 
 
-def side_to_policy_id(side: str) -> str:
+def side_to_policy_id(side: str, policy_sharing: str = "split") -> str:
+    if policy_sharing == "unified":
+        return SHARED_POLICY_ID
     return US_POLICY_ID if side == "us" else USSR_POLICY_ID
 
 
-def parse_policies_to_train(raw: str | None, multi_agent: bool) -> list[str] | None:
+def parse_policies_to_train(raw: str | None, multi_agent: bool, policy_sharing: str = "split") -> list[str] | None:
     if not multi_agent:
         return None
+    if policy_sharing == "unified":
+        if not raw:
+            return [SHARED_POLICY_ID]
+        aliases = {
+            "shared": SHARED_POLICY_ID,
+            "shared_policy": SHARED_POLICY_ID,
+            "unified": SHARED_POLICY_ID,
+            "both": SHARED_POLICY_ID,
+            "us": SHARED_POLICY_ID,
+            "ussr": SHARED_POLICY_ID,
+            "us_policy": SHARED_POLICY_ID,
+            "ussr_policy": SHARED_POLICY_ID,
+        }
+        policies = []
+        for item in raw.split(","):
+            key = item.strip().lower()
+            if not key:
+                continue
+            if key not in aliases:
+                raise ValueError(f"unknown policy in --policies-to-train: {item}")
+            policies.append(aliases[key])
+        return sorted(set(policies))
     if not raw:
         return [US_POLICY_ID, USSR_POLICY_ID]
     aliases = {
@@ -139,10 +164,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hidden", type=int, default=256)
     parser.add_argument("--model-arch", choices=["feedforward", "transformer_history"], default="feedforward")
     parser.add_argument("--history-layers", type=int, default=2)
+    parser.add_argument("--card-history-layers", type=int, default=2)
     parser.add_argument("--history-attention-heads", type=int, default=4)
     parser.add_argument("--history-dropout", type=float, default=0.1)
     parser.add_argument("--graph-layers", type=int, default=2)
-    parser.add_argument("--graph-neighbor-hops", type=int, default=5)
+    parser.add_argument("--graph-neighbor-hops", type=int, default=2)
     parser.add_argument("--heuristic-prior-scale", type=float, default=2.0)
     parser.add_argument("--setup-heuristic-prior-scale", type=float, default=0.0)
     parser.add_argument("--policy-temperature", type=float, default=1.0)
@@ -156,8 +182,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sample-timeout-s", type=float, default=1800.0)
     parser.add_argument("--restore-from", default=None)
     parser.add_argument("--eval-initial-from", default=None)
+    parser.add_argument("--policy-sharing", choices=["split", "unified"], default="split")
+    parser.add_argument("--unified-train-focus-side", choices=["both", "us", "ussr"], default="both")
+    parser.add_argument("--focus-opponent-policy-from", default=None)
+    parser.add_argument("--load-shared-policy-from", default=None)
+    parser.add_argument("--load-shared-source-side", choices=["us", "ussr"], default="us")
     parser.add_argument("--load-us-policy-from", default=None)
     parser.add_argument("--load-ussr-policy-from", default=None)
+    parser.add_argument("--benchmark-label", default="side_selected_best")
+    parser.add_argument("--benchmark-us-policy-from", default=None)
+    parser.add_argument("--benchmark-ussr-policy-from", default=None)
     parser.add_argument("--partial-warmstart", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--load-report-path", default=None)
     parser.add_argument("--policies-to-train", default=None)
@@ -178,6 +212,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reward-shaping-phaseout-end-episodes", type=int, default=0)
     parser.add_argument("--turn-vp-reward-scale", type=float, default=0.05)
     parser.add_argument("--nuke-death-penalty", type=float, default=0.0)
+    parser.add_argument("--scoring-card-held-penalty", type=float, default=0.0)
     parser.add_argument("--high-stability-coup-penalty", type=float, default=0.0)
     parser.add_argument("--low-stability-warzone-coup-reward", type=float, default=0.0)
     parser.add_argument("--headline-opponent-event-penalty", type=float, default=0.0)
@@ -250,6 +285,7 @@ def new_elo_state(k_factor: float) -> dict[str, Any]:
         "leaderboards": {
             "us": {"ratings": {}, "games": {}},
             "ussr": {"ratings": {}, "games": {}},
+            "bot": {"ratings": {}, "games": {}},
         },
         "matches": [],
     }
@@ -263,7 +299,7 @@ def load_elo_state(path: Path, k_factor: float) -> dict[str, Any]:
     state.setdefault("version", 1)
     state["k_factor"] = float(k_factor)
     leaderboards = state.setdefault("leaderboards", {})
-    for side in ("us", "ussr"):
+    for side in ("us", "ussr", "bot"):
         board = leaderboards.setdefault(side, {})
         board.setdefault("ratings", {})
         board.setdefault("games", {})
@@ -291,7 +327,7 @@ def update_elo_match(
     k_factor: float,
     meta: dict[str, Any] | None = None,
 ) -> tuple[float, float]:
-    if side not in {"us", "ussr"}:
+    if side not in {"us", "ussr", "bot"}:
         raise ValueError(f"unknown Elo side leaderboard: {side}")
     board = state.setdefault("leaderboards", {}).setdefault(side, {"ratings": {}, "games": {}})
     ratings = board.setdefault("ratings", {})
@@ -397,6 +433,20 @@ def random_legal_action(obs: dict[str, Any], rng: np.random.Generator) -> int:
     if len(legal) == 0:
         return 0
     return int(rng.choice(legal))
+
+
+def eval_benchmark_policy_id(which: str, side: str, side_policy_ids: dict[str, str], switcher: "EvalPolicySwitcher") -> str:
+    weights = switcher.weights.get(which, {})
+    candidates = [
+        side_to_policy_id(side, "split"),
+        side_policy_ids.get(side, ""),
+        SHARED_POLICY_ID,
+        "default_policy",
+    ]
+    for candidate in candidates:
+        if candidate and candidate in weights:
+            return candidate
+    raise KeyError(f"missing {which} weights for {side}; available policies: {sorted(weights)}")
 
 
 class EvalPolicySwitcher:
@@ -516,14 +566,14 @@ def play_eval_game(
             elif opponent == "initial":
                 if switcher is None:
                     raise RuntimeError("initial-opponent evaluation requires an EvalPolicySwitcher")
-                policy_id = side_policy_ids.get(side, side_to_policy_id(side))
+                policy_id = eval_benchmark_policy_id("initial", side, side_policy_ids, switcher)
                 action = switcher.action(policy_id, "initial", obs)
             elif opponent == "random":
                 action = random_legal_action(obs, rng)
             else:
                 if switcher is None:
                     raise RuntimeError("benchmark-opponent evaluation requires an EvalPolicySwitcher")
-                policy_id = side_policy_ids.get(side, side_to_policy_id(side))
+                policy_id = eval_benchmark_policy_id(opponent, side, side_policy_ids, switcher)
                 action = switcher.action(policy_id, opponent, obs)
             try:
                 obs, _reward, terminated, truncated, final_info = env.step(action)
@@ -566,6 +616,7 @@ def evaluate_policy(
         return {}
     eval_env_config = make_eval_env_config(env_config, max_episode_steps)
     unique_policy_ids = sorted(set(side_policy_ids.values()))
+    unified_policy_eval = len(unique_policy_ids) == 1 and unique_policy_ids[0] == SHARED_POLICY_ID
     current_weights = {policy_id: algo.get_policy(policy_id).get_weights() for policy_id in unique_policy_ids}
     switcher = EvalPolicySwitcher(algo, current_weights, benchmark_weights)
     rng = np.random.default_rng(seed_base)
@@ -655,6 +706,38 @@ def evaluate_policy(
                 flush=True,
             )
             if elo_state is not None:
+                if unified_policy_eval:
+                    bot_score = current_wins / count if count else 0.5
+                    bot_player = f"{eval_label}:{SHARED_POLICY_ID}"
+                    opponent_weights = benchmark_weights.get(opponent, {})
+                    if opponent == "random":
+                        bot_opponent_policy = RANDOM_LEGAL_POLICY_ID
+                    elif US_POLICY_ID in opponent_weights or USSR_POLICY_ID in opponent_weights:
+                        bot_opponent_policy = "split_policy_pair"
+                    else:
+                        bot_opponent_policy = SHARED_POLICY_ID
+                    bot_opponent = f"{opponent}:{bot_opponent_policy}"
+                    bot_rating, bot_opponent_rating = update_elo_match(
+                        elo_state,
+                        "bot",
+                        bot_player,
+                        bot_opponent,
+                        bot_score,
+                        k_factor=elo_k_factor,
+                        meta={
+                            "eval_label": eval_label,
+                            "opponent_family": opponent,
+                            "games": count,
+                            "us_side_win_rate": metrics[f"eval_vs_{opponent_metric}/us_side_win_rate"],
+                            "ussr_side_win_rate": metrics[f"eval_vs_{opponent_metric}/ussr_side_win_rate"],
+                            "nuke_terminal_rate": metrics[f"eval_vs_{opponent_metric}/nuke_terminal_rate"],
+                            "timeout_rate": metrics[f"eval_vs_{opponent_metric}/timeout_rate"],
+                            "aggregate": True,
+                        },
+                    )
+                    metrics[f"elo/bot/{opponent_metric}_score"] = bot_score
+                    metrics[f"elo/bot/current_rating_vs_{opponent_metric}"] = float(bot_rating)
+                    metrics[f"elo/bot/{opponent_metric}_opponent_rating"] = float(bot_opponent_rating)
                 for record in records:
                     current_side = str(record.get("current_side"))
                     opponent_side = "ussr" if current_side == "us" else "us"
@@ -694,6 +777,24 @@ def evaluate_policy(
                         opponent_player = f"{opponent}:{opponent_side}_policy"
                         metrics[f"elo/{side}/{opponent_metric}_opponent_rating"] = float(ratings.get(opponent_player, 1500.0))
                         metrics[f"elo/{side}/{opponent_metric}_opponent_games"] = int(games.get(opponent_player, 0))
+            if unified_policy_eval:
+                ratings = (elo_state.get("leaderboards", {}).get("bot", {}) or {}).get("ratings", {})
+                games = (elo_state.get("leaderboards", {}).get("bot", {}) or {}).get("games", {})
+                current_player = f"{eval_label}:{SHARED_POLICY_ID}"
+                metrics["elo/bot/current_rating"] = float(ratings.get(current_player, 1500.0))
+                metrics["elo/bot/current_games"] = int(games.get(current_player, 0))
+                metrics["elo/bot/leaderboard_size"] = len(ratings)
+                for opponent in opponents:
+                    opponent_metric = metric_label(opponent)
+                    opponent_weights = benchmark_weights.get(opponent, {})
+                    if opponent == "random":
+                        opponent_policy = RANDOM_LEGAL_POLICY_ID
+                    elif US_POLICY_ID in opponent_weights or USSR_POLICY_ID in opponent_weights:
+                        opponent_policy = "split_policy_pair"
+                    else:
+                        opponent_policy = SHARED_POLICY_ID
+                    opponent_player = f"{opponent}:{opponent_policy}"
+                    metrics[f"elo/bot/{opponent_metric}_opponent_games"] = int(games.get(opponent_player, 0))
     finally:
         switcher.restore_current()
     return metrics
@@ -809,6 +910,16 @@ def copy_compatible_or_widened_weights(
 
 def main() -> None:
     args = parse_args()
+    has_split_benchmark = bool(args.benchmark_us_policy_from or args.benchmark_ussr_policy_from)
+    if has_split_benchmark and not (args.benchmark_us_policy_from and args.benchmark_ussr_policy_from):
+        raise SystemExit("--benchmark-us-policy-from and --benchmark-ussr-policy-from must be provided together")
+    if args.unified_train_focus_side != "both" and args.policy_sharing != "unified":
+        raise SystemExit("--unified-train-focus-side requires --policy-sharing unified")
+    focus_fixed_policy_id: str | None = None
+    if args.policy_sharing == "unified" and args.unified_train_focus_side == "us":
+        focus_fixed_policy_id = USSR_POLICY_ID
+    elif args.policy_sharing == "unified" and args.unified_train_focus_side == "ussr":
+        focus_fixed_policy_id = US_POLICY_ID
     try:
         import ray
         from ray.rllib.algorithms.ppo import PPOConfig
@@ -822,6 +933,8 @@ def main() -> None:
     league_pools: dict[str, dict[str, list[str]]] = {}
     league_sampling = normalize_sampling(None)
     if args.league_manifest:
+        if args.policy_sharing == "unified":
+            raise SystemExit("--policy-sharing unified is not wired for --league-manifest yet")
         with Path(args.league_manifest).expanduser().open("r", encoding="utf-8") as handle:
             league_manifest = json.load(handle)
         league_sources = league_policy_sources(league_manifest)
@@ -851,6 +964,7 @@ def main() -> None:
         "reward_shaping_scale": args.reward_shaping_scale,
         "turn_vp_reward_scale": args.turn_vp_reward_scale,
         "nuke_death_penalty": args.nuke_death_penalty,
+        "scoring_card_held_penalty": args.scoring_card_held_penalty,
         "high_stability_coup_penalty": args.high_stability_coup_penalty,
         "low_stability_warzone_coup_reward": args.low_stability_warzone_coup_reward,
         "headline_opponent_event_penalty": args.headline_opponent_event_penalty,
@@ -884,7 +998,8 @@ def main() -> None:
     metrics_dir = Path(args.metrics_dir) if args.metrics_dir else checkpoint_root / "metrics"
     env_config["metrics_dir"] = str(metrics_dir)
     metrics_dir.mkdir(parents=True, exist_ok=True)
-    elo_path = Path(args.elo_path).expanduser().resolve() if args.elo_path else checkpoint_root / "elo_ratings.json"
+    default_elo_name = "elo_unified.json" if args.policy_sharing == "unified" else "elo_ratings.json"
+    elo_path = Path(args.elo_path).expanduser().resolve() if args.elo_path else checkpoint_root / default_elo_name
     elo_state = load_elo_state(elo_path, args.elo_k_factor)
     wandb_run = None
     if args.wandb_project:
@@ -928,6 +1043,7 @@ def main() -> None:
                     "hidden": args.hidden,
                     "model_arch": args.model_arch,
                     "history_layers": args.history_layers,
+                    "card_history_layers": args.card_history_layers,
                     "history_attention_heads": args.history_attention_heads,
                     "history_dropout": args.history_dropout,
                     "graph_layers": args.graph_layers,
@@ -940,10 +1056,18 @@ def main() -> None:
         )
     )
     if args.multi_agent:
-        policies = {
-            US_POLICY_ID: policy_spec,
-            USSR_POLICY_ID: policy_spec,
-        }
+        if args.policy_sharing == "unified":
+            policies = {SHARED_POLICY_ID: policy_spec}
+            if focus_fixed_policy_id:
+                policies[focus_fixed_policy_id] = policy_spec
+            if has_split_benchmark:
+                policies[US_POLICY_ID] = policy_spec
+                policies[USSR_POLICY_ID] = policy_spec
+        else:
+            policies = {
+                US_POLICY_ID: policy_spec,
+                USSR_POLICY_ID: policy_spec,
+            }
         for policy_id in league_sources:
             policies[policy_id] = policy_spec
         if args.league_manifest:
@@ -952,7 +1076,7 @@ def main() -> None:
         train_policy_ids = (
             league_train_policy_ids(args.league_role, args.league_train_side)
             if args.league_manifest
-            else parse_policies_to_train(args.policies_to_train, multi_agent=True)
+            else parse_policies_to_train(args.policies_to_train, multi_agent=True, policy_sharing=args.policy_sharing)
         )
         league_rng = random.Random(args.league_opponent_seed)
 
@@ -990,6 +1114,12 @@ def main() -> None:
 
         def _league_policy_mapping(agent_id, episode, worker, **kwargs):
             if not args.league_manifest:
+                if args.policy_sharing == "unified":
+                    if args.unified_train_focus_side == "us":
+                        return SHARED_POLICY_ID if str(agent_id) == "us" else USSR_POLICY_ID
+                    if args.unified_train_focus_side == "ussr":
+                        return SHARED_POLICY_ID if str(agent_id) == "ussr" else US_POLICY_ID
+                    return SHARED_POLICY_ID
                 return US_POLICY_ID if agent_id == "us" else USSR_POLICY_ID
             if "_league_policy_mapping" not in episode.user_data:
                 episode.user_data["_league_policy_mapping"] = _sample_league_mapping()
@@ -1002,8 +1132,8 @@ def main() -> None:
         )
     algo = config.build()
     side_policy_ids = {
-        "us": US_POLICY_ID if args.multi_agent else "default_policy",
-        "ussr": USSR_POLICY_ID if args.multi_agent else "default_policy",
+        "us": side_to_policy_id("us", args.policy_sharing) if args.multi_agent else "default_policy",
+        "ussr": side_to_policy_id("ussr", args.policy_sharing) if args.multi_agent else "default_policy",
     }
     def _current_weights() -> dict[str, dict[str, Any]]:
         return copy.deepcopy({
@@ -1014,6 +1144,17 @@ def main() -> None:
     def _weights_from_checkpoint(path: Path) -> dict[str, dict[str, Any]]:
         policy_ids = checkpoint_policy_ids(path)
         if args.multi_agent:
+            if args.policy_sharing == "unified":
+                if SHARED_POLICY_ID in policy_ids or (path / "policies" / SHARED_POLICY_ID).exists() or path.name == SHARED_POLICY_ID:
+                    return {SHARED_POLICY_ID: load_policy_weights(path, SHARED_POLICY_ID)}
+                source_policy_id = US_POLICY_ID if args.load_shared_source_side == "us" else USSR_POLICY_ID
+                if source_policy_id in policy_ids or path.name == source_policy_id:
+                    return {SHARED_POLICY_ID: load_policy_weights(path, source_policy_id)}
+                if "default_policy" in policy_ids or (path / "policies" / "default_policy").exists() or path.name == "default_policy":
+                    return {SHARED_POLICY_ID: load_policy_weights(path, "default_policy")}
+                other_policy_id = USSR_POLICY_ID if source_policy_id == US_POLICY_ID else US_POLICY_ID
+                if other_policy_id in policy_ids or path.name == other_policy_id:
+                    return {SHARED_POLICY_ID: load_policy_weights(path, other_policy_id)}
             if US_POLICY_ID in policy_ids and USSR_POLICY_ID in policy_ids:
                 return {
                     US_POLICY_ID: load_policy_weights(path, US_POLICY_ID),
@@ -1035,6 +1176,15 @@ def main() -> None:
 
     def _restore_training_checkpoint(path: Path) -> None:
         policy_ids = checkpoint_policy_ids(path)
+        if args.multi_agent and args.policy_sharing == "unified":
+            if SHARED_POLICY_ID in policy_ids:
+                algo.restore(str(path))
+                print(f"restored_from={path}")
+                return
+            weights_by_policy = _weights_from_checkpoint(path)
+            algo.get_policy(SHARED_POLICY_ID).set_weights(weights_by_policy[SHARED_POLICY_ID])
+            print(f"initialized_shared_policy_from={path}")
+            return
         if args.multi_agent and not ({US_POLICY_ID, USSR_POLICY_ID} <= policy_ids):
             weights_by_policy = _weights_from_checkpoint(path)
             algo.get_policy(US_POLICY_ID).set_weights(weights_by_policy[US_POLICY_ID])
@@ -1046,8 +1196,32 @@ def main() -> None:
 
     load_reports: list[dict[str, Any]] = []
 
+    def _load_weights_for_policy(path: Path, target_policy_id: str, preferred_source_policy_id: str | None = None) -> dict[str, Any]:
+        policy_ids = checkpoint_policy_ids(path)
+        candidate_policy_ids = [
+            preferred_source_policy_id,
+            target_policy_id,
+            SHARED_POLICY_ID,
+            "default_policy",
+            US_POLICY_ID,
+            USSR_POLICY_ID,
+        ]
+        for candidate_policy_id in candidate_policy_ids:
+            if not candidate_policy_id:
+                continue
+            if (
+                candidate_policy_id in policy_ids
+                or path.name == candidate_policy_id
+                or (path / "policies" / candidate_policy_id).exists()
+            ):
+                return load_policy_weights(path, candidate_policy_id)
+        raise RuntimeError(f"cannot load weights for {target_policy_id} from checkpoint {path}")
+
     def _set_or_warmstart_policy(policy_id: str, path: Path, side: str) -> None:
         source_weights = _weights_from_checkpoint(path)[policy_id]
+        _set_or_warmstart_policy_weights(policy_id, source_weights, path, side)
+
+    def _set_or_warmstart_policy_weights(policy_id: str, source_weights: dict[str, Any], path: Path, side: str) -> None:
         policy = algo.get_policy(policy_id)
         use_partial = args.partial_warmstart if args.partial_warmstart is not None else args.model_arch == "transformer_history"
         if not use_partial:
@@ -1081,18 +1255,75 @@ def main() -> None:
     if args.restore_from:
         restore_path = Path(args.restore_from).expanduser().resolve()
         _restore_training_checkpoint(restore_path)
-    if args.multi_agent and args.load_us_policy_from:
+    if args.multi_agent and args.policy_sharing == "unified":
+        shared_source: str | None = args.load_shared_policy_from
+        shared_label = "shared"
+        if shared_source is None:
+            if args.load_shared_source_side == "ussr" and args.load_ussr_policy_from:
+                shared_source = args.load_ussr_policy_from
+                shared_label = "shared_from_ussr"
+            elif args.load_us_policy_from:
+                shared_source = args.load_us_policy_from
+                shared_label = "shared_from_us"
+            elif args.load_ussr_policy_from:
+                shared_source = args.load_ussr_policy_from
+                shared_label = "shared_from_ussr"
+        if shared_source:
+            shared_path = Path(shared_source).expanduser().resolve()
+            _set_or_warmstart_policy(SHARED_POLICY_ID, shared_path, shared_label)
+        if focus_fixed_policy_id:
+            if args.focus_opponent_policy_from:
+                focus_source = args.focus_opponent_policy_from
+            elif focus_fixed_policy_id == USSR_POLICY_ID and args.benchmark_ussr_policy_from:
+                focus_source = args.benchmark_ussr_policy_from
+            elif focus_fixed_policy_id == US_POLICY_ID and args.benchmark_us_policy_from:
+                focus_source = args.benchmark_us_policy_from
+            elif focus_fixed_policy_id == USSR_POLICY_ID and args.load_ussr_policy_from:
+                focus_source = args.load_ussr_policy_from
+            elif focus_fixed_policy_id == US_POLICY_ID and args.load_us_policy_from:
+                focus_source = args.load_us_policy_from
+            else:
+                raise SystemExit(
+                    "--unified-train-focus-side requires --focus-opponent-policy-from "
+                    "or the matching benchmark/load side policy path"
+                )
+            focus_path = Path(focus_source).expanduser().resolve()
+            focus_weights = _load_weights_for_policy(
+                focus_path,
+                focus_fixed_policy_id,
+                preferred_source_policy_id=focus_fixed_policy_id,
+            )
+            _set_or_warmstart_policy_weights(focus_fixed_policy_id, focus_weights, focus_path, f"fixed_{args.unified_train_focus_side}_opponent")
+    elif args.multi_agent and args.load_us_policy_from:
         us_path = Path(args.load_us_policy_from).expanduser().resolve()
         _set_or_warmstart_policy(US_POLICY_ID, us_path, "us")
     elif args.league_manifest and not args.restore_from and league_manifest and (league_manifest.get("seed_policies") or {}).get("us"):
         us_path = Path((league_manifest.get("seed_policies") or {})["us"]).expanduser().resolve()
         _set_or_warmstart_policy(US_POLICY_ID, us_path, "us")
-    if args.multi_agent and args.load_ussr_policy_from:
+    if args.multi_agent and args.policy_sharing != "unified" and args.load_ussr_policy_from:
         ussr_path = Path(args.load_ussr_policy_from).expanduser().resolve()
         _set_or_warmstart_policy(USSR_POLICY_ID, ussr_path, "ussr")
     elif args.league_manifest and not args.restore_from and league_manifest and (league_manifest.get("seed_policies") or {}).get("ussr"):
         ussr_path = Path((league_manifest.get("seed_policies") or {})["ussr"]).expanduser().resolve()
         _set_or_warmstart_policy(USSR_POLICY_ID, ussr_path, "ussr")
+    static_benchmark_weights: dict[str, dict[str, dict[str, Any]]] = {}
+    if has_split_benchmark:
+        benchmark_label = metric_label(str(args.benchmark_label or "side_selected_best"))
+        benchmark_us_path = Path(args.benchmark_us_policy_from).expanduser().resolve()
+        benchmark_ussr_path = Path(args.benchmark_ussr_policy_from).expanduser().resolve()
+        static_benchmark_weights[benchmark_label] = {
+            US_POLICY_ID: load_policy_weights(benchmark_us_path, US_POLICY_ID),
+            USSR_POLICY_ID: load_policy_weights(benchmark_ussr_path, USSR_POLICY_ID),
+        }
+        print(
+            {
+                "event": "split_benchmark_loaded",
+                "benchmark_label": benchmark_label,
+                "us_policy": str(benchmark_us_path),
+                "ussr_policy": str(benchmark_ussr_path),
+            },
+            flush=True,
+        )
     for fixed_policy_id, item in league_sources.items():
         source_path = Path(item["source"]).expanduser().resolve()
         source_policy_id = side_to_policy_id(item["side"])
@@ -1185,7 +1416,7 @@ def main() -> None:
             checkpoint_label = f"steps-{train_steps_seen:010d}-episodes-{episodes_seen:08d}"
             checkpoint_path = save_checkpoint(algo, checkpoint_root, checkpoint_label)
             checkpoint_paths.append(checkpoint_path)
-            benchmark_weights = {"initial": initial_weights}
+            benchmark_weights = {"initial": initial_weights, **static_benchmark_weights}
             history_limit = max(0, int(args.eval_history_opponents))
             if history_limit > 0:
                 benchmark_weights.update(
@@ -1266,7 +1497,7 @@ def main() -> None:
             break
     checkpoint_path = save_checkpoint(algo, checkpoint_root, "final")
     checkpoint_paths.append(checkpoint_path)
-    final_benchmark_weights = {"initial": initial_weights}
+    final_benchmark_weights = {"initial": initial_weights, **static_benchmark_weights}
     history_limit = max(0, int(args.eval_history_opponents))
     if history_limit > 0:
         final_benchmark_weights.update({label: weights for label, weights in historical_eval_weights[-history_limit:]})

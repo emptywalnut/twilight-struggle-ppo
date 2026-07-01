@@ -4,7 +4,7 @@ PPO-ready Twilight Struggle environment using Saito Twilight as the headless rul
 
 ## Published Contents
 
-This repository contains the code and data needed to run the training stack.
+This repository contains the code and sample data needed to run the training stack.
 Generated run artifacts are intentionally excluded: no PPO checkpoints, game
 logs, W&B run directories, Python caches, or installed `node_modules` are
 committed.
@@ -50,15 +50,14 @@ pip install -e '.[train,test]'
 python -m struggle_ai.train_rllib --stop-iters 1 --num-env-runners 0
 ```
 
-For staged PPO diagnostics with existing policy checkpoints, provide local
-checkpoint paths from your own run directory:
+For the staged PPO diagnostics, seed from the saved mixed best policies:
 
 ```bash
 python -m struggle_ai.league init --league-dir runs/ppo/league_stage_a
 python -m struggle_ai.league launch --league-dir runs/ppo/league_stage_a --role main --branch hard_filter --episodes 1000 --dry-run
 python -m struggle_ai.eval_rllib \
-  --us-policy /path/to/us_policy \
-  --ussr-policy /path/to/ussr_policy \
+  --us-policy runs/ppo/selected_policies/best_us57005_ussr66001/policies/us_policy \
+  --ussr-policy runs/ppo/selected_policies/best_us57005_ussr66001/policies/ussr_policy \
   --games 100 \
   --opponent mixed \
   --out-dir runs/ppo/eval_mixed/stage_a_sanity

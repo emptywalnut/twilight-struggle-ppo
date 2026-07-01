@@ -58,7 +58,7 @@ if TorchModelV2 is not None:
             cfg = model_config.get("custom_model_config", {})
             hidden = int(cfg.get("hidden", 256))
             graph_layers = int(cfg.get("graph_layers", 2))
-            self.graph_neighbor_hops = max(1, int(cfg.get("graph_neighbor_hops", 5)))
+            self.graph_neighbor_hops = max(1, int(cfg.get("graph_neighbor_hops", 2)))
             self.heuristic_prior_scale = float(cfg.get("heuristic_prior_scale", 2.0))
             self.setup_heuristic_prior_scale = float(cfg.get("setup_heuristic_prior_scale", 0.0))
             self.policy_temperature = max(0.05, float(cfg.get("policy_temperature", 1.0)))
@@ -97,8 +97,21 @@ if TorchModelV2 is not None:
                     encoder_layer,
                     num_layers=int(cfg.get("history_layers", 2)),
                 )
+                self.card_history_encoder = mlp(int(original["card_history"].shape[-1]), hidden, hidden)
+                card_encoder_layer = nn.TransformerEncoderLayer(
+                    d_model=hidden,
+                    nhead=int(cfg.get("history_attention_heads", 4)),
+                    dim_feedforward=hidden * 4,
+                    dropout=float(cfg.get("history_dropout", 0.1)),
+                    batch_first=True,
+                    activation="gelu",
+                )
+                self.card_history_transformer = nn.TransformerEncoder(
+                    card_encoder_layer,
+                    num_layers=int(cfg.get("card_history_layers", cfg.get("history_layers", 2))),
+                )
             self.state_encoder = nn.Sequential(
-                nn.Linear(hidden * (5 if self.use_transformer_history else 4), hidden),
+                nn.Linear(hidden * (6 if self.use_transformer_history else 4), hidden),
                 nn.ReLU(),
                 nn.LayerNorm(hidden),
                 nn.Linear(hidden, hidden),
@@ -130,9 +143,10 @@ if TorchModelV2 is not None:
                 ).float().unsqueeze(1)
                 logits = logits + self.setup_heuristic_prior_scale * is_setup * heuristic_prior
             logits = logits / self.policy_temperature
+            logits = torch.nan_to_num(logits, nan=0.0, posinf=1e4, neginf=-1e4).clamp(-1e4, 1e4)
             mask = obs["action_mask"].float()
             inf_mask = torch.clamp(torch.log(mask), min=FLOAT_MIN)
-            self._value_out = self.value(state_embedding).squeeze(1)
+            self._value_out = torch.nan_to_num(self.value(state_embedding).squeeze(1), nan=0.0, posinf=1e4, neginf=-1e4).clamp(-1e4, 1e4)
             return logits + inf_mask, state
 
         def encode_state(self, obs):
@@ -154,6 +168,7 @@ if TorchModelV2 is not None:
             embeddings = [global_embedding, country_embedding, region_embedding, card_embedding]
             if self.use_transformer_history:
                 embeddings.append(self.encode_history(obs))
+                embeddings.append(self.encode_card_history(obs))
             return self.state_encoder(
                 torch.cat(embeddings, dim=1)
             )
@@ -172,6 +187,19 @@ if TorchModelV2 is not None:
                     key_padding_mask = key_padding_mask.clone()
                     key_padding_mask[all_empty, 0] = False
             encoded = self.history_transformer(h, src_key_padding_mask=key_padding_mask)
+            weights = mask.unsqueeze(-1)
+            return (encoded * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
+
+        def encode_card_history(self, obs):
+            h = self.card_history_encoder(obs["card_history"].float())
+            mask = obs["card_history_mask"].float()
+            key_padding_mask = mask <= 0.5
+            if key_padding_mask.ndim == 2:
+                all_empty = key_padding_mask.all(dim=1)
+                if all_empty.any():
+                    key_padding_mask = key_padding_mask.clone()
+                    key_padding_mask[all_empty, 0] = False
+            encoded = self.card_history_transformer(h, src_key_padding_mask=key_padding_mask)
             weights = mask.unsqueeze(-1)
             return (encoded * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
 

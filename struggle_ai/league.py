@@ -49,10 +49,11 @@ def parse_args() -> argparse.Namespace:
     launch.add_argument("--model-arch", choices=["feedforward", "transformer_history"], default="feedforward")
     launch.add_argument("--hidden", type=int, default=256)
     launch.add_argument("--history-layers", type=int, default=2)
+    launch.add_argument("--card-history-layers", type=int, default=2)
     launch.add_argument("--history-attention-heads", type=int, default=4)
     launch.add_argument("--history-dropout", type=float, default=0.05)
     launch.add_argument("--graph-layers", type=int, default=2)
-    launch.add_argument("--graph-neighbor-hops", type=int, default=5)
+    launch.add_argument("--graph-neighbor-hops", type=int, default=2)
     launch.add_argument("--heuristic-prior-scale", type=float, default=2.0)
     launch.add_argument("--setup-heuristic-prior-scale", type=float, default=0.0)
     launch.add_argument("--policy-temperature", type=float, default=1.0)
@@ -223,6 +224,8 @@ def train_command(args: argparse.Namespace, manifest: dict[str, Any]) -> list[st
         str(args.hidden),
         "--history-layers",
         str(args.history_layers),
+        "--card-history-layers",
+        str(getattr(args, "card_history_layers", args.history_layers)),
         "--history-attention-heads",
         str(args.history_attention_heads),
         "--history-dropout",

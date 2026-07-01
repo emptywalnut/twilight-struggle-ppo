@@ -9,7 +9,8 @@ from struggle_ai.policies import score_action
 
 
 MAX_ACTIONS = 512
-HISTORY_LENGTH = 128
+HISTORY_LENGTH = 512
+CARD_HISTORY_LENGTH = 160
 
 REGIONS = ("europe", "asia", "seasia", "mideast", "africa", "camerica", "samerica")
 EVENT_KEYS = (
@@ -58,8 +59,9 @@ EVENT_KEYS = (
 GLOBAL_FEATURES = 24
 COUNTRY_FEATURES = 34
 REGION_FEATURES = 20
-CARD_FEATURES = 28
+CARD_FEATURES = 30
 ACTION_FEATURES = 45
+CARD_HISTORY_FEATURES = 26
 EVENT_FEATURES = len(EVENT_KEYS)
 HEURISTIC_PRIOR_FEATURE = 40
 
@@ -143,6 +145,7 @@ def encode_observation(obs: dict[str, Any], legal_actions: list[dict[str, Any]],
         "action_mask": action_mask,
         "action_features": action_features,
         **encode_history(obs.get("history", [])),
+        **encode_card_history(obs.get("card_history", []), spec),
     }
 
 
@@ -172,6 +175,62 @@ def encode_history(history: list[dict[str, Any]], length: int = HISTORY_LENGTH) 
         "history_turn_ar": history_turn_ar,
         "history_vp_defcon": history_vp_defcon,
         "history_mask": history_mask,
+    }
+
+
+def encode_card_history(
+    card_history: list[dict[str, Any]],
+    spec: FeatureSpec,
+    length: int = CARD_HISTORY_LENGTH,
+) -> dict[str, np.ndarray]:
+    card_index = {card_id: idx for idx, card_id in enumerate(spec.card_ids)}
+    features = np.zeros((length, CARD_HISTORY_FEATURES), dtype=np.float32)
+    mask = np.zeros((length,), dtype=np.float32)
+    recent = list(card_history or [])[-length:]
+    offset = length - len(recent)
+    for idx, item in enumerate(recent, start=offset):
+        card_id = str(item.get("card") or "")
+        card = spec.card_meta.get(card_id, {})
+        owner = str(card.get("player") or card.get("side") or "")
+        side = str(item.get("side") or "")
+        modes = set(item.get("modes") or [])
+        phase = str(item.get("phase") or "").lower()
+        vp_before = float(item.get("vp_before") or 0.0)
+        vp_after = float(item.get("vp_after", vp_before) or 0.0)
+        defcon_before = float(item.get("defcon_before") or 0.0)
+        defcon_after = float(item.get("defcon_after", defcon_before) or 0.0)
+        card_pos = card_index.get(card_id, -1)
+
+        features[idx, 0] = side_sign(side) if side in {"us", "ussr"} else 0.0
+        features[idx, 1] = safe_div(float(item.get("turn") or 0.0), 10.0)
+        features[idx, 2] = safe_div(float(item.get("action_round") or 0.0), 7.0)
+        features[idx, 3] = safe_div(vp_before, 20.0)
+        features[idx, 4] = safe_div(defcon_before, 5.0)
+        features[idx, 5] = safe_div(vp_after - vp_before, 20.0)
+        features[idx, 6] = safe_div(defcon_after - defcon_before, 5.0)
+        features[idx, 7] = 1.0 if card_pos >= 0 else 0.0
+        features[idx, 8] = safe_div(card_pos + 1, spec.card_count) if card_pos >= 0 else 0.0
+        features[idx, 9] = safe_div(float(card.get("ops", 0)), 4.0)
+        features[idx, 10] = 1.0 if owner == "us" else 0.0
+        features[idx, 11] = 1.0 if owner == "ussr" else 0.0
+        features[idx, 12] = 1.0 if owner == "both" else 0.0
+        features[idx, 13] = 1.0 if card.get("scoring") else 0.0
+        features[idx, 14] = side_value(owner, side) if side in {"us", "ussr"} else 0.0
+        features[idx, 15] = 1.0 if owner in {"us", "ussr"} and owner != side else 0.0
+        features[idx, 16] = 1.0 if "headline" in phase or "headline" in modes else 0.0
+        features[idx, 17] = 1.0 if "event" in modes else 0.0
+        features[idx, 18] = 1.0 if "ops" in modes else 0.0
+        features[idx, 19] = 1.0 if "space" in modes else 0.0
+        features[idx, 20] = 1.0 if "before_ops" in modes else 0.0
+        features[idx, 21] = 1.0 if "after_ops" in modes else 0.0
+        features[idx, 22] = 1.0 if "discard" in modes else 0.0
+        features[idx, 23] = 1.0 if card_id in DEFCON_RISK_EVENT_CARDS else 0.0
+        features[idx, 24] = 1.0 if item.get("removed") else 0.0
+        features[idx, 25] = 1.0 if item.get("completed") else 0.0
+        mask[idx] = 1.0
+    return {
+        "card_history": features,
+        "card_history_mask": mask,
     }
 
 
@@ -357,6 +416,8 @@ def encode_cards(
         features[idx, 25] = 1.0 if card_id in DEFCON_FORCED_COUP_EVENT_CARDS else 0.0
         features[idx, 26] = 1.0 if card_id in DEFCON_RANDOM_EVENT_TRIGGER_CARDS else 0.0
         features[idx, 27] = 1.0 if in_hand and obs["defcon"] <= 2 and card_id in DEFCON_RISK_EVENT_CARDS else 0.0
+        features[idx, 28] = 1.0 if side == "us" and in_hand else 0.0
+        features[idx, 29] = 1.0 if side == "ussr" and in_hand else 0.0
     return features
 
 
