@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from rank_ppo_checkpoints import checkpoint_records, rank_side
+from rank_ppo_checkpoints import checkpoint_records, default_train_log, rank_side
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,9 +47,10 @@ def main() -> None:
     if out_dir.exists() and not args.force:
         raise SystemExit(f"output exists; pass --force to replace: {out_dir}")
 
-    records = checkpoint_records(run_dir / "train.log")
+    train_log = default_train_log(run_dir)
+    records = checkpoint_records(train_log)
     if not records:
-        raise SystemExit(f"no checkpoint_eval_done/final_eval_done records in {run_dir / 'train.log'}")
+        raise SystemExit(f"no checkpoint_eval_done/final_eval_done records in {train_log}")
 
     best = {
         "us": select_best(records, "us", args.max_nuke_rate),

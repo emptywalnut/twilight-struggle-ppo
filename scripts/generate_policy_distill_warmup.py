@@ -34,11 +34,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--output-manifest", type=Path, default=None)
     parser.add_argument("--episodes", type=int, default=100)
+    parser.add_argument(
+        "--reject-terminal-reason",
+        action="append",
+        default=[],
+        help="Terminal reason to discard from the distillation dataset; may be repeated.",
+    )
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=0,
+        help="Maximum rollout attempts. Defaults to 10x --episodes when rejection is enabled, else --episodes.",
+    )
     parser.add_argument("--seed", type=int, default=9100000000)
     parser.add_argument("--max-episode-steps", type=int, default=1200)
     parser.add_argument("--hidden", type=int, default=256)
     parser.add_argument("--model-arch", choices=["feedforward", "transformer_history"], default="feedforward")
     parser.add_argument("--history-layers", type=int, default=2)
+    parser.add_argument("--card-history-layers", type=int, default=2)
     parser.add_argument("--history-attention-heads", type=int, default=4)
     parser.add_argument("--history-dropout", type=float, default=0.1)
     parser.add_argument("--graph-layers", type=int, default=2)
@@ -83,6 +96,7 @@ def build_teacher_algo(args: argparse.Namespace, env: TwilightStruggleEnv):
                     "hidden": args.hidden,
                     "model_arch": args.model_arch,
                     "history_layers": args.history_layers,
+                    "card_history_layers": args.card_history_layers,
                     "history_attention_heads": args.history_attention_heads,
                     "history_dropout": args.history_dropout,
                     "graph_layers": args.graph_layers,
@@ -226,6 +240,8 @@ def run_episode(env: TwilightStruggleEnv, algo: Any, seed: int, episode_index: i
 
 def main() -> None:
     args = parse_args()
+    reject_terminal_reasons = {str(item).lower() for item in (args.reject_terminal_reason or [])}
+    max_attempts = args.max_attempts or (args.episodes * 10 if reject_terminal_reasons else args.episodes)
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     env = TwilightStruggleEnv(
         {
@@ -238,33 +254,60 @@ def main() -> None:
     )
     algo = build_teacher_algo(args, env)
     records_written = 0
+    attempts = 0
     samples_written = 0
     result_counts: dict[str, int] = {}
+    rejected_counts: dict[str, int] = {}
     try:
         with args.output_jsonl.open("w", encoding="utf-8") as handle:
-            for episode in range(1, args.episodes + 1):
-                record = run_episode(env, algo, args.seed + episode, episode, args)
+            while records_written < args.episodes and attempts < max_attempts:
+                attempts += 1
+                record = run_episode(env, algo, args.seed + attempts, attempts, args)
+                reason = str((record.get("result") or {}).get("terminal_reason") or "unknown")
+                if reason.lower() in reject_terminal_reasons:
+                    rejected_counts[reason] = rejected_counts.get(reason, 0) + 1
+                    if attempts % 10 == 0:
+                        print(
+                            {
+                                "event": "distill_progress",
+                                "attempts": attempts,
+                                "accepted_episodes": records_written,
+                                "samples": samples_written,
+                                "terminal_reasons": result_counts,
+                                "rejected_terminal_reasons": rejected_counts,
+                            },
+                            flush=True,
+                        )
+                    continue
                 handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
                 records_written += 1
                 samples_written += len(record.get("samples") or [])
-                reason = str((record.get("result") or {}).get("terminal_reason") or "unknown")
                 result_counts[reason] = result_counts.get(reason, 0) + 1
-                if episode % 10 == 0 or episode == args.episodes:
+                if records_written % 10 == 0 or records_written == args.episodes:
                     print(
                         {
                             "event": "distill_progress",
-                            "episodes": episode,
+                            "attempts": attempts,
+                            "accepted_episodes": records_written,
                             "samples": samples_written,
                             "terminal_reasons": result_counts,
+                            "rejected_terminal_reasons": rejected_counts,
                         },
                         flush=True,
                     )
+        if records_written < args.episodes:
+            raise RuntimeError(
+                f"only accepted {records_written} / {args.episodes} requested records after {attempts} attempts; "
+                f"rejected={rejected_counts}"
+            )
         manifest = {
             "format": "ts_warmup_manifest_v1",
             "game_files": [args.output_jsonl.name],
             "records": records_written,
+            "attempts": attempts,
             "samples": samples_written,
             "terminal_reasons": result_counts,
+            "rejected_terminal_reasons": rejected_counts,
             "source": {
                 "us_policy_from": str(args.us_policy_from),
                 "ussr_policy_from": str(args.ussr_policy_from),

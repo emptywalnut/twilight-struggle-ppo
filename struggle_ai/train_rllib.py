@@ -30,6 +30,13 @@ LEAGUE_DEFAULT_SAMPLING = {
     "random_legal": 0.05,
     "heuristic": 0.05,
 }
+UNIFIED_OPPONENT_MIX_DEFAULT = {
+    "current_self": 0.45,
+    "teacher": 0.25,
+    "anchor": 0.20,
+    "random_legal": 0.10,
+    "heuristic": 0.00,
+}
 
 
 def side_to_policy_id(side: str, policy_sharing: str = "split") -> str:
@@ -109,6 +116,29 @@ def normalize_sampling(raw: dict[str, Any] | None) -> dict[str, float]:
     return {key: max(0.0, value) / total for key, value in values.items()}
 
 
+def normalize_unified_opponent_mix(raw: dict[str, Any] | None) -> dict[str, float]:
+    defaults = UNIFIED_OPPONENT_MIX_DEFAULT if raw is None else {key: 0.0 for key in UNIFIED_OPPONENT_MIX_DEFAULT}
+    values = {key: float((raw or {}).get(key, default)) for key, default in defaults.items()}
+    total = sum(max(0.0, value) for value in values.values())
+    if total <= 0:
+        return {"current_self": 1.0, **{key: 0.0 for key in values if key != "current_self"}}
+    return {key: max(0.0, value) / total for key, value in values.items()}
+
+
+def parse_path_list(raw: str | None) -> list[Path]:
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        parsed = [item.strip() for item in raw.split(",") if item.strip()]
+    if isinstance(parsed, str):
+        parsed = [parsed]
+    if not isinstance(parsed, list):
+        raise ValueError("expected a JSON list or comma-separated list of paths")
+    return [Path(str(item)).expanduser().resolve() for item in parsed if str(item).strip()]
+
+
 def weighted_choice(rng: random.Random, weights: dict[str, float]) -> str:
     threshold = rng.random()
     cumulative = 0.0
@@ -159,6 +189,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stop-iters", type=int, default=1)
     parser.add_argument("--stop-timesteps", type=int, default=None)
     parser.add_argument("--stop-episodes", type=int, default=None)
+    parser.add_argument("--eval-only", action="store_true")
     parser.add_argument("--num-env-runners", type=int, default=8)
     parser.add_argument("--framework", choices=["torch"], default="torch")
     parser.add_argument("--hidden", type=int, default=256)
@@ -172,6 +203,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--heuristic-prior-scale", type=float, default=2.0)
     parser.add_argument("--setup-heuristic-prior-scale", type=float, default=0.0)
     parser.add_argument("--policy-temperature", type=float, default=1.0)
+    parser.add_argument("--lr", type=float, default=5e-5)
+    parser.add_argument("--num-epochs", type=int, default=30)
+    parser.add_argument("--kl-coeff", type=float, default=0.2)
+    parser.add_argument("--kl-target", type=float, default=0.01)
     parser.add_argument("--entropy-coeff", type=float, default=0.0)
     parser.add_argument("--num-gpus", type=float, default=0.0)
     parser.add_argument("--num-gpus-per-env-runner", type=float, default=0.0)
@@ -184,6 +219,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-initial-from", default=None)
     parser.add_argument("--policy-sharing", choices=["split", "unified"], default="split")
     parser.add_argument("--unified-train-focus-side", choices=["both", "us", "ussr"], default="both")
+    parser.add_argument(
+        "--unified-opponent-mix-json",
+        default=None,
+        help=(
+            "JSON weights for unified-policy rollout opponent sampling. "
+            "Supported keys: current_self, teacher, anchor, random_legal, heuristic."
+        ),
+    )
+    parser.add_argument("--unified-opponent-mix-seed", type=int, default=260704)
+    parser.add_argument(
+        "--unified-anchor-policy-from",
+        default=None,
+        help="JSON list or comma-separated list of fixed shared-policy checkpoints for unified mixed-opponent training.",
+    )
+    parser.add_argument("--adaptive-us-focus", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--us-focus-elo-lag-threshold", type=float, default=75.0)
+    parser.add_argument("--us-focus-prob", type=float, default=0.70)
     parser.add_argument("--focus-opponent-policy-from", default=None)
     parser.add_argument("--load-shared-policy-from", default=None)
     parser.add_argument("--load-shared-source-side", choices=["us", "ussr"], default="us")
@@ -239,12 +291,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint-eval-every-steps", type=int, default=1000)
     parser.add_argument("--checkpoint-eval-every-episodes", type=int, default=0)
     parser.add_argument("--eval-games", type=int, default=50)
-    parser.add_argument("--eval-min-games-per-side", type=int, default=10)
+    parser.add_argument("--eval-min-games-per-side", type=int, default=30)
     parser.add_argument("--eval-history-opponents", type=int, default=0)
     parser.add_argument("--eval-max-episode-steps", type=int, default=None)
     parser.add_argument("--eval-progress-every-games", type=int, default=10)
     parser.add_argument("--elo-path", default=None)
     parser.add_argument("--elo-k-factor", type=float, default=32.0)
+    parser.add_argument("--best-checkpoint-manifest", default=None)
+    parser.add_argument("--best-score-side-weight", type=float, default=0.25)
+    parser.add_argument("--best-score-balance-penalty", type=float, default=0.25)
+    parser.add_argument("--best-score-nuke-penalty", type=float, default=100.0)
+    parser.add_argument("--best-score-scoring-card-held-penalty", type=float, default=100.0)
+    parser.add_argument("--best-score-random-side-floor", type=float, default=0.80)
+    parser.add_argument("--best-score-random-side-penalty", type=float, default=200.0)
+    parser.add_argument("--best-score-benchmark-side-floor", type=float, default=0.50)
+    parser.add_argument("--best-score-benchmark-side-penalty", type=float, default=250.0)
+    parser.add_argument("--early-stop-patience-evals", type=int, default=0)
+    parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
     return parser.parse_args()
 
 
@@ -311,6 +374,106 @@ def save_elo_state(path: Path, state: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(state, handle, indent=2, sort_keys=True)
+
+
+def evaluated_checkpoint_score(metrics: dict[str, Any], args: argparse.Namespace) -> dict[str, float]:
+    bot_elo = float(metrics.get("elo/bot/current_rating", 1500.0) or 1500.0)
+    us_elo = float(metrics.get("elo/us/current_rating", 1500.0) or 1500.0)
+    ussr_elo = float(metrics.get("elo/ussr/current_rating", 1500.0) or 1500.0)
+    side_floor = min(us_elo, ussr_elo)
+    side_gap = abs(us_elo - ussr_elo)
+    nuke_rates = [
+        float(value)
+        for key, value in metrics.items()
+        if key.startswith("eval_vs_") and key.endswith("/nuke_terminal_rate") and isinstance(value, (int, float))
+    ]
+    mean_nuke = float(np.mean(nuke_rates)) if nuke_rates else 0.0
+    scoring_card_held_rates = [
+        float(value)
+        for key, value in metrics.items()
+        if key.startswith("eval_vs_")
+        and key.endswith("/scoring_card_held_terminal_rate")
+        and isinstance(value, (int, float))
+    ]
+    mean_scoring_card_held = float(np.mean(scoring_card_held_rates)) if scoring_card_held_rates else 0.0
+    random_us = float(metrics.get("eval_vs_random/us_side_win_rate", 0.0) or 0.0)
+    random_ussr = float(metrics.get("eval_vs_random/ussr_side_win_rate", 0.0) or 0.0)
+    random_shortfall = max(0.0, float(args.best_score_random_side_floor) - min(random_us, random_ussr))
+    benchmark_side_rates: list[float] = []
+    for key, value in metrics.items():
+        if not (
+            key.startswith("eval_vs_")
+            and (key.endswith("/us_side_win_rate") or key.endswith("/ussr_side_win_rate"))
+        ):
+            continue
+        opponent = key.split("/", 1)[0].removeprefix("eval_vs_")
+        if opponent == "random" or opponent.startswith("steps-"):
+            continue
+        try:
+            benchmark_side_rates.append(float(value))
+        except (TypeError, ValueError):
+            pass
+    benchmark_side_floor = min(benchmark_side_rates) if benchmark_side_rates else 1.0
+    benchmark_shortfall = max(0.0, float(args.best_score_benchmark_side_floor) - benchmark_side_floor)
+    score = (
+        bot_elo
+        + float(args.best_score_side_weight) * side_floor
+        - float(args.best_score_balance_penalty) * side_gap
+        - float(args.best_score_nuke_penalty) * mean_nuke
+        - float(args.best_score_scoring_card_held_penalty) * mean_scoring_card_held
+        - float(args.best_score_random_side_penalty) * random_shortfall
+        - float(args.best_score_benchmark_side_penalty) * benchmark_shortfall
+    )
+    return {
+        "score": float(score),
+        "bot_elo": bot_elo,
+        "us_elo": us_elo,
+        "ussr_elo": ussr_elo,
+        "side_floor_elo": side_floor,
+        "side_gap_elo": side_gap,
+        "mean_eval_nuke_rate": mean_nuke,
+        "mean_eval_scoring_card_held_rate": mean_scoring_card_held,
+        "random_us_side_win_rate": random_us,
+        "random_ussr_side_win_rate": random_ussr,
+        "random_side_shortfall": random_shortfall,
+        "benchmark_side_floor_win_rate": benchmark_side_floor,
+        "benchmark_side_shortfall": benchmark_shortfall,
+    }
+
+
+def write_best_checkpoint_manifest(
+    path: Path,
+    *,
+    checkpoint: str,
+    eval_label: str,
+    episodes_seen: int,
+    train_steps_seen: int,
+    score_details: dict[str, float],
+    eval_metrics: dict[str, Any],
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "checkpoint": checkpoint,
+        "eval_label": eval_label,
+        "episodes_seen": int(episodes_seen),
+        "train_steps_seen": int(train_steps_seen),
+        "score": float(score_details["score"]),
+        "score_details": score_details,
+        "eval_metrics": {
+            key: value
+            for key, value in eval_metrics.items()
+            if isinstance(value, (int, float, str, bool))
+        },
+    }
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+    link_path = path.parent / "best_checkpoint"
+    try:
+        if link_path.is_symlink() or link_path.exists():
+            link_path.unlink()
+        link_path.symlink_to(Path(checkpoint))
+    except OSError:
+        pass
 
 
 def elo_expected(rating_a: float, rating_b: float) -> float:
@@ -390,6 +553,7 @@ def summarize_terminal_metrics(records: list[dict[str, Any]], prefix: str) -> di
         f"{prefix}/nuke_terminal_ratio": sum(1 for reason in reasons if reason in NUKE_TERMINAL_REASONS) / count,
         f"{prefix}/vp_threshold_rate": sum(1 for reason in reasons if reason == "vp_threshold") / count,
         f"{prefix}/final_scoring_rate": sum(1 for reason in reasons if reason == "final scoring") / count,
+        f"{prefix}/scoring_card_held_terminal_rate": sum(1 for reason in reasons if reason == "scoring card held") / count,
         f"{prefix}/avg_steps": float(np.mean([float(record.get("steps") or 0.0) for record in records])),
         f"{prefix}/us_reward": float(np.mean([float(record.get("us_reward") or 0.0) for record in records])),
         f"{prefix}/ussr_reward": float(np.mean([float(record.get("ussr_reward") or 0.0) for record in records])),
@@ -455,16 +619,27 @@ class EvalPolicySwitcher:
         algo: Any,
         current_weights: dict[str, dict[str, Any]],
         benchmark_weights: dict[str, dict[str, dict[str, Any]]],
+        *,
+        partial_compatible_load: bool = False,
     ):
         self.algo = algo
         self.weights = {"current": current_weights, **benchmark_weights}
         self.active: dict[str, str] = {}
+        self.partial_compatible_load = partial_compatible_load
 
     def action(self, policy_id: str, which: str, obs: dict[str, Any]) -> int:
         policy = self.algo.get_policy(policy_id)
         if self.active.get(policy_id) != which:
             if which in self.weights and policy_id in self.weights[which]:
-                policy.set_weights(self.weights[which][policy_id])
+                weights = self.weights[which][policy_id]
+                if self.partial_compatible_load and which != "current":
+                    current = policy.get_weights()
+                    current, _matched, _widened, _skipped_shape, _missing_source, _unexpected_source = (
+                        copy_compatible_or_widened_weights(current, weights)
+                    )
+                    policy.set_weights(current)
+                else:
+                    policy.set_weights(weights)
             else:
                 raise KeyError(f"missing {which} weights for policy {policy_id}")
             self.active[policy_id] = which
@@ -618,7 +793,12 @@ def evaluate_policy(
     unique_policy_ids = sorted(set(side_policy_ids.values()))
     unified_policy_eval = len(unique_policy_ids) == 1 and unique_policy_ids[0] == SHARED_POLICY_ID
     current_weights = {policy_id: algo.get_policy(policy_id).get_weights() for policy_id in unique_policy_ids}
-    switcher = EvalPolicySwitcher(algo, current_weights, benchmark_weights)
+    switcher = EvalPolicySwitcher(
+        algo,
+        current_weights,
+        benchmark_weights,
+        partial_compatible_load=True,
+    )
     rng = np.random.default_rng(seed_base)
     metrics: dict[str, float | int] = {}
     try:
@@ -676,6 +856,7 @@ def evaluate_policy(
             us_games = [record for record in records if record.get("current_side") == "us"]
             ussr_games = [record for record in records if record.get("current_side") == "ussr"]
             nuke_count = sum(1 for record in records if record.get("terminal_reason") in NUKE_TERMINAL_REASONS)
+            scoring_card_held_count = sum(1 for record in records if record.get("terminal_reason") == "scoring card held")
             timeout_count = sum(1 for record in records if record.get("terminal_reason") == "eval_max_episode_steps")
             metrics[f"eval_vs_{opponent_metric}/games"] = count
             metrics[f"eval_vs_{opponent_metric}/games_per_side"] = games_per_side
@@ -687,6 +868,9 @@ def evaluate_policy(
                 sum(1 for record in ussr_games if record.get("winner") == "ussr") / len(ussr_games) if ussr_games else 0.0
             )
             metrics[f"eval_vs_{opponent_metric}/nuke_terminal_rate"] = nuke_count / count if count else 0.0
+            metrics[f"eval_vs_{opponent_metric}/scoring_card_held_terminal_rate"] = (
+                scoring_card_held_count / count if count else 0.0
+            )
             metrics[f"eval_vs_{opponent_metric}/timeout_rate"] = timeout_count / count if count else 0.0
             metrics[f"eval_vs_{opponent_metric}/avg_steps"] = float(np.mean([float(record.get("steps") or 0.0) for record in records])) if records else 0.0
             print(
@@ -700,6 +884,7 @@ def evaluate_policy(
                     "us_side_win_rate": metrics[f"eval_vs_{opponent_metric}/us_side_win_rate"],
                     "ussr_side_win_rate": metrics[f"eval_vs_{opponent_metric}/ussr_side_win_rate"],
                     "nuke_terminal_rate": metrics[f"eval_vs_{opponent_metric}/nuke_terminal_rate"],
+                    "scoring_card_held_terminal_rate": metrics[f"eval_vs_{opponent_metric}/scoring_card_held_terminal_rate"],
                     "timeout_rate": metrics[f"eval_vs_{opponent_metric}/timeout_rate"],
                     "avg_steps": metrics[f"eval_vs_{opponent_metric}/avg_steps"],
                 },
@@ -731,6 +916,9 @@ def evaluate_policy(
                             "us_side_win_rate": metrics[f"eval_vs_{opponent_metric}/us_side_win_rate"],
                             "ussr_side_win_rate": metrics[f"eval_vs_{opponent_metric}/ussr_side_win_rate"],
                             "nuke_terminal_rate": metrics[f"eval_vs_{opponent_metric}/nuke_terminal_rate"],
+                            "scoring_card_held_terminal_rate": metrics[
+                                f"eval_vs_{opponent_metric}/scoring_card_held_terminal_rate"
+                            ],
                             "timeout_rate": metrics[f"eval_vs_{opponent_metric}/timeout_rate"],
                             "aggregate": True,
                         },
@@ -839,12 +1027,21 @@ def checkpoint_policy_ids(checkpoint_path: Path) -> set[str]:
 
 
 def load_policy_weights(checkpoint_path: Path, policy_id: str) -> dict[str, Any]:
+    import pickle
+
     from ray.rllib.policy.policy import Policy
 
     register_masked_model()
     policy_path = checkpoint_path / "policies" / policy_id
     if not policy_path.exists():
         policy_path = checkpoint_path
+    policy_state_path = policy_path / "policy_state.pkl"
+    if policy_state_path.exists():
+        with policy_state_path.open("rb") as handle:
+            state = pickle.load(handle)
+        weights = state.get("weights") if isinstance(state, dict) else None
+        if isinstance(weights, dict):
+            return weights
     policy = Policy.from_checkpoint(str(policy_path.resolve()))
     if isinstance(policy, dict):
         if policy_id in policy:
@@ -915,6 +1112,24 @@ def main() -> None:
         raise SystemExit("--benchmark-us-policy-from and --benchmark-ussr-policy-from must be provided together")
     if args.unified_train_focus_side != "both" and args.policy_sharing != "unified":
         raise SystemExit("--unified-train-focus-side requires --policy-sharing unified")
+    if args.unified_opponent_mix_json and args.policy_sharing != "unified":
+        raise SystemExit("--unified-opponent-mix-json requires --policy-sharing unified")
+    if args.unified_opponent_mix_json and args.unified_train_focus_side != "both":
+        raise SystemExit("--unified-opponent-mix-json cannot be combined with --unified-train-focus-side")
+    unified_opponent_mix = (
+        normalize_unified_opponent_mix(json.loads(args.unified_opponent_mix_json))
+        if args.unified_opponent_mix_json
+        else None
+    )
+    unified_anchor_paths = parse_path_list(args.unified_anchor_policy_from)
+    if unified_opponent_mix and unified_opponent_mix.get("teacher", 0.0) > 0 and not has_split_benchmark:
+        raise SystemExit("teacher weight in --unified-opponent-mix-json requires --benchmark-us-policy-from and --benchmark-ussr-policy-from")
+    if unified_opponent_mix and unified_opponent_mix.get("anchor", 0.0) > 0 and not unified_anchor_paths:
+        raise SystemExit("anchor weight in --unified-opponent-mix-json requires --unified-anchor-policy-from")
+    unified_anchor_policy_ids = [
+        f"unified_anchor_policy_{index:02d}"
+        for index, _path in enumerate(unified_anchor_paths)
+    ]
     focus_fixed_policy_id: str | None = None
     if args.policy_sharing == "unified" and args.unified_train_focus_side == "us":
         focus_fixed_policy_id = USSR_POLICY_ID
@@ -1033,8 +1248,13 @@ def main() -> None:
         .training(
             gamma=0.997,
             lambda_=0.95,
+            lr=args.lr,
             clip_param=0.2,
+            use_kl_loss=True,
+            kl_coeff=args.kl_coeff,
+            kl_target=args.kl_target,
             entropy_coeff=args.entropy_coeff,
+            num_epochs=args.num_epochs,
             train_batch_size=args.train_batch_size,
             minibatch_size=args.minibatch_size,
             model={
@@ -1063,6 +1283,11 @@ def main() -> None:
             if has_split_benchmark:
                 policies[US_POLICY_ID] = policy_spec
                 policies[USSR_POLICY_ID] = policy_spec
+            for policy_id in unified_anchor_policy_ids:
+                policies[policy_id] = policy_spec
+            if unified_opponent_mix:
+                policies[RANDOM_LEGAL_POLICY_ID] = (RandomLegalPolicy, probe_observation_space, probe_action_space, {})
+                policies[HEURISTIC_POLICY_ID] = (HeuristicPolicy, probe_observation_space, probe_action_space, {})
         else:
             policies = {
                 US_POLICY_ID: policy_spec,
@@ -1079,6 +1304,31 @@ def main() -> None:
             else parse_policies_to_train(args.policies_to_train, multi_agent=True, policy_sharing=args.policy_sharing)
         )
         league_rng = random.Random(args.league_opponent_seed)
+        unified_mix_rng = random.Random(args.unified_opponent_mix_seed)
+        unified_train_us_probability = 0.5
+
+        def _sample_unified_opponent_mix_mapping() -> dict[str, str]:
+            assert unified_opponent_mix is not None
+            train_side = "us" if unified_mix_rng.random() < unified_train_us_probability else "ussr"
+            opponent_side = "ussr" if train_side == "us" else "us"
+            category = weighted_choice(unified_mix_rng, unified_opponent_mix)
+            if category == "teacher":
+                opponent_policy = US_POLICY_ID if opponent_side == "us" else USSR_POLICY_ID
+            elif category == "anchor" and unified_anchor_policy_ids:
+                opponent_policy = unified_mix_rng.choice(unified_anchor_policy_ids)
+            elif category == "random_legal":
+                opponent_policy = RANDOM_LEGAL_POLICY_ID
+            elif category == "heuristic":
+                opponent_policy = HEURISTIC_POLICY_ID
+            else:
+                category = "current_self"
+                opponent_policy = SHARED_POLICY_ID
+            return {
+                train_side: SHARED_POLICY_ID,
+                opponent_side: opponent_policy,
+                "_unified_train_side": train_side,
+                "_unified_opponent_category": category,
+            }
 
         def _sample_league_mapping() -> dict[str, str]:
             train_sides = league_train_sides(args.league_role, args.league_train_side)
@@ -1115,6 +1365,10 @@ def main() -> None:
         def _league_policy_mapping(agent_id, episode, worker, **kwargs):
             if not args.league_manifest:
                 if args.policy_sharing == "unified":
+                    if unified_opponent_mix:
+                        if "_unified_opponent_mix_mapping" not in episode.user_data:
+                            episode.user_data["_unified_opponent_mix_mapping"] = _sample_unified_opponent_mix_mapping()
+                        return episode.user_data["_unified_opponent_mix_mapping"].get(str(agent_id), SHARED_POLICY_ID)
                     if args.unified_train_focus_side == "us":
                         return SHARED_POLICY_ID if str(agent_id) == "us" else USSR_POLICY_ID
                     if args.unified_train_focus_side == "ussr":
@@ -1178,6 +1432,11 @@ def main() -> None:
         policy_ids = checkpoint_policy_ids(path)
         if args.multi_agent and args.policy_sharing == "unified":
             if SHARED_POLICY_ID in policy_ids:
+                if (path / "stripped_stateless_policies.json").exists():
+                    weights_by_policy = _weights_from_checkpoint(path)
+                    algo.get_policy(SHARED_POLICY_ID).set_weights(weights_by_policy[SHARED_POLICY_ID])
+                    print(f"initialized_shared_policy_from_stripped_checkpoint={path}")
+                    return
                 algo.restore(str(path))
                 print(f"restored_from={path}")
                 return
@@ -1324,6 +1583,45 @@ def main() -> None:
             },
             flush=True,
         )
+        if args.policy_sharing == "unified" and unified_opponent_mix:
+            benchmark_us_weights = _load_weights_for_policy(
+                benchmark_us_path,
+                US_POLICY_ID,
+                preferred_source_policy_id=US_POLICY_ID,
+            )
+            benchmark_ussr_weights = _load_weights_for_policy(
+                benchmark_ussr_path,
+                USSR_POLICY_ID,
+                preferred_source_policy_id=USSR_POLICY_ID,
+            )
+            _set_or_warmstart_policy_weights(US_POLICY_ID, benchmark_us_weights, benchmark_us_path, "unified_mix_teacher_us")
+            _set_or_warmstart_policy_weights(USSR_POLICY_ID, benchmark_ussr_weights, benchmark_ussr_path, "unified_mix_teacher_ussr")
+            print(
+                {
+                    "event": "unified_opponent_mix_loaded",
+                    "mix": unified_opponent_mix,
+                    "teacher_us_policy": str(benchmark_us_path),
+                    "teacher_ussr_policy": str(benchmark_ussr_path),
+                },
+                flush=True,
+            )
+    if args.multi_agent and args.policy_sharing == "unified" and unified_anchor_paths:
+        for anchor_policy_id, anchor_path in zip(unified_anchor_policy_ids, unified_anchor_paths, strict=True):
+            source_weights = _weights_from_checkpoint(anchor_path)
+            weights = source_weights.get(SHARED_POLICY_ID)
+            if weights is None and len(source_weights) == 1:
+                weights = next(iter(source_weights.values()))
+            if weights is None:
+                raise RuntimeError(f"cannot load unified anchor policy {anchor_policy_id} from {anchor_path}")
+            _set_or_warmstart_policy_weights(anchor_policy_id, weights, anchor_path, anchor_policy_id)
+        print(
+            {
+                "event": "unified_anchor_policies_loaded",
+                "anchor_policy_count": len(unified_anchor_policy_ids),
+                "anchor_policies": dict(zip(unified_anchor_policy_ids, [str(path) for path in unified_anchor_paths], strict=True)),
+            },
+            flush=True,
+        )
     for fixed_policy_id, item in league_sources.items():
         source_path = Path(item["source"]).expanduser().resolve()
         source_policy_id = side_to_policy_id(item["side"])
@@ -1360,6 +1658,67 @@ def main() -> None:
         print(f"load_report={report_path}")
     if initial_weights is None:
         initial_weights = _current_weights()
+    if args.eval_only:
+        eval_label = "eval_only"
+        eval_checkpoint = str(Path(args.restore_from).expanduser().resolve()) if args.restore_from else "current_weights"
+        benchmark_weights = {"initial": initial_weights, **static_benchmark_weights}
+        print(
+            {
+                "event": "eval_only_start",
+                "checkpoint": eval_checkpoint,
+                "eval_games_per_opponent": args.eval_games,
+                "eval_games_per_side": eval_games_per_side(args.eval_games, args.eval_min_games_per_side),
+                "eval_opponents": [*benchmark_weights.keys(), "random"],
+                "eval_max_episode_steps": args.eval_max_episode_steps,
+                "eval_progress_every_games": args.eval_progress_every_games,
+                "elo_path": str(elo_path),
+            },
+            flush=True,
+        )
+        eval_metrics = evaluate_policy(
+            algo=algo,
+            benchmark_weights=benchmark_weights,
+            env_config=env_config,
+            eval_games=args.eval_games,
+            min_games_per_side=args.eval_min_games_per_side,
+            max_episode_steps=args.eval_max_episode_steps,
+            seed_base=30_000_000,
+            side_policy_ids=side_policy_ids,
+            eval_label=eval_label,
+            progress_every_games=args.eval_progress_every_games,
+            elo_state=elo_state,
+            elo_k_factor=args.elo_k_factor,
+        )
+        eval_metrics["checkpoint/path"] = eval_checkpoint
+        eval_metrics["checkpoint/episodes"] = 0
+        eval_metrics["checkpoint/train_steps"] = 0
+        score_details = evaluated_checkpoint_score(eval_metrics, args)
+        eval_metrics.update({f"best_checkpoint/{key}": value for key, value in score_details.items()})
+        save_elo_state(elo_path, elo_state)
+        if args.best_checkpoint_manifest:
+            write_best_checkpoint_manifest(
+                Path(args.best_checkpoint_manifest).expanduser().resolve(),
+                checkpoint=eval_checkpoint,
+                eval_label=eval_label,
+                episodes_seen=0,
+                train_steps_seen=0,
+                score_details=score_details,
+                eval_metrics=eval_metrics,
+            )
+        print(
+            {
+                "event": "eval_only_done",
+                "checkpoint": eval_checkpoint,
+                "elo_path": str(elo_path),
+                **eval_metrics,
+            },
+            flush=True,
+        )
+        if wandb_run:
+            wandb_run.log({"iter": 0, **eval_metrics}, step=0)
+            wandb_run.finish()
+        ray.shutdown()
+        return
     i = 0
     episodes_seen = 0
     train_steps_seen = 0
@@ -1370,6 +1729,13 @@ def main() -> None:
     checkpoint_paths: list[str] = []
     historical_eval_weights: list[tuple[str, dict[str, dict[str, Any]]]] = []
     active_reward_shaping_scale: float | None = None
+    best_manifest_path = (
+        Path(args.best_checkpoint_manifest).expanduser().resolve()
+        if args.best_checkpoint_manifest
+        else checkpoint_root / "best_checkpoint.json"
+    )
+    best_score = float("-inf")
+    stale_eval_count = 0
     while True:
         reward_shaping_scale = reward_shaping_scale_for_episodes(args, episodes_seen)
         if active_reward_shaping_scale is None or abs(active_reward_shaping_scale - reward_shaping_scale) > 1e-9:
@@ -1456,6 +1822,73 @@ def main() -> None:
             eval_metrics["checkpoint/episodes"] = episodes_seen
             eval_metrics["checkpoint/path"] = checkpoint_path
             save_elo_state(elo_path, elo_state)
+            score_details = evaluated_checkpoint_score(eval_metrics, args)
+            eval_metrics.update({f"best_checkpoint/{key}": value for key, value in score_details.items()})
+            if (
+                args.adaptive_us_focus
+                and args.policy_sharing == "unified"
+                and unified_opponent_mix
+            ):
+                previous_probability = unified_train_us_probability
+                if score_details["us_elo"] + float(args.us_focus_elo_lag_threshold) < score_details["ussr_elo"]:
+                    unified_train_us_probability = float(args.us_focus_prob)
+                else:
+                    unified_train_us_probability = 0.5
+                eval_metrics["adaptive_us_focus/train_us_probability"] = unified_train_us_probability
+                if abs(previous_probability - unified_train_us_probability) > 1e-9:
+                    print(
+                        {
+                            "event": "adaptive_us_focus_update",
+                            "previous_train_us_probability": previous_probability,
+                            "train_us_probability": unified_train_us_probability,
+                            "us_elo": score_details["us_elo"],
+                            "ussr_elo": score_details["ussr_elo"],
+                            "threshold": args.us_focus_elo_lag_threshold,
+                        },
+                        flush=True,
+                    )
+            previous_best_score = best_score
+            score_improved = score_details["score"] > previous_best_score
+            score_improved_by_min_delta = score_details["score"] > previous_best_score + float(args.early_stop_min_delta)
+            if score_improved:
+                best_score = score_details["score"]
+                if score_improved_by_min_delta:
+                    stale_eval_count = 0
+                else:
+                    stale_eval_count += 1
+                write_best_checkpoint_manifest(
+                    best_manifest_path,
+                    checkpoint=checkpoint_path,
+                    eval_label=checkpoint_label,
+                    episodes_seen=episodes_seen,
+                    train_steps_seen=train_steps_seen,
+                    score_details=score_details,
+                    eval_metrics=eval_metrics,
+                )
+                print(
+                    {
+                        "event": "best_checkpoint_updated",
+                        "best_checkpoint": checkpoint_path,
+                        "best_manifest": str(best_manifest_path),
+                        "previous_best_score": previous_best_score,
+                        "stale_eval_count": stale_eval_count,
+                        "early_stop_min_delta_met": score_improved_by_min_delta,
+                        **{f"score/{key}": value for key, value in score_details.items()},
+                    },
+                    flush=True,
+                )
+            else:
+                stale_eval_count += 1
+                print(
+                    {
+                        "event": "best_checkpoint_not_improved",
+                        "checkpoint": checkpoint_path,
+                        "best_score": best_score,
+                        "stale_eval_count": stale_eval_count,
+                        **{f"score/{key}": value for key, value in score_details.items()},
+                    },
+                    flush=True,
+                )
             if history_limit > 0:
                 historical_eval_weights.append((checkpoint_label, _current_weights()))
                 if len(historical_eval_weights) > history_limit:
@@ -1475,6 +1908,18 @@ def main() -> None:
                 next_checkpoint_eval_step += args.checkpoint_eval_every_steps
             while args.checkpoint_eval_every_episodes > 0 and episodes_seen >= next_checkpoint_eval_episode:
                 next_checkpoint_eval_episode += args.checkpoint_eval_every_episodes
+            if args.early_stop_patience_evals > 0 and stale_eval_count >= args.early_stop_patience_evals:
+                print(
+                    {
+                        "event": "early_stop_triggered",
+                        "stale_eval_count": stale_eval_count,
+                        "patience": args.early_stop_patience_evals,
+                        "best_score": best_score,
+                        "best_manifest": str(best_manifest_path),
+                    },
+                    flush=True,
+                )
+                break
         if wandb_run:
             wandb_payload = {
                 "iter": i,
@@ -1531,11 +1976,37 @@ def main() -> None:
         elo_k_factor=args.elo_k_factor,
     )
     save_elo_state(elo_path, elo_state)
+    final_score_details = evaluated_checkpoint_score(final_eval_metrics, args)
+    final_eval_metrics.update({f"best_checkpoint/{key}": value for key, value in final_score_details.items()})
+    if final_score_details["score"] > best_score:
+        previous_best_score = best_score
+        best_score = final_score_details["score"]
+        write_best_checkpoint_manifest(
+            best_manifest_path,
+            checkpoint=checkpoint_path,
+            eval_label="final",
+            episodes_seen=episodes_seen,
+            train_steps_seen=train_steps_seen,
+            score_details=final_score_details,
+            eval_metrics=final_eval_metrics,
+        )
+        print(
+            {
+                "event": "best_checkpoint_updated",
+                "best_checkpoint": checkpoint_path,
+                "best_manifest": str(best_manifest_path),
+                "previous_best_score": previous_best_score,
+                **{f"score/{key}": value for key, value in final_score_details.items()},
+            },
+            flush=True,
+        )
     print({"event": "final_eval_done", "checkpoint": checkpoint_path, "elo_path": str(elo_path), **final_eval_metrics}, flush=True)
     print(f"checkpoint={checkpoint_path}")
     if wandb_run:
         wandb_run.summary["checkpoint"] = str(checkpoint_path)
         wandb_run.summary["checkpoints"] = checkpoint_paths
+        wandb_run.summary["best_checkpoint_manifest"] = str(best_manifest_path)
+        wandb_run.summary["best_checkpoint_score"] = best_score
         if final_eval_metrics:
             wandb_run.log({"iter": i, "episodes_seen": episodes_seen, **{f"final/{k}": v for k, v in final_eval_metrics.items()}}, step=i + 1)
         wandb_run.finish()

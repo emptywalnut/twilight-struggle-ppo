@@ -9,7 +9,7 @@ from struggle_ai.policies import score_action
 
 
 MAX_ACTIONS = 512
-HISTORY_LENGTH = 512
+HISTORY_LENGTH = 1024
 CARD_HISTORY_LENGTH = 160
 
 REGIONS = ("europe", "asia", "seasia", "mideast", "africa", "camerica", "samerica")
@@ -141,12 +141,36 @@ def encode_observation(obs: dict[str, Any], legal_actions: list[dict[str, Any]],
         "countries": country_features,
         "regions": region_features,
         "cards": card_features,
+        **encode_visible_hands(obs, card_index, spec),
         "country_adjacency": spec.country_adjacency.copy(),
         "action_mask": action_mask,
         "action_features": action_features,
         **encode_history(obs.get("history", [])),
         **encode_card_history(obs.get("card_history", []), spec),
     }
+
+
+def encode_visible_hands(
+    obs: dict[str, Any],
+    card_index: dict[str, int],
+    spec: FeatureSpec,
+) -> dict[str, np.ndarray]:
+    """Absolute visible-hand masks.
+
+    Normal hidden-information observations only expose the acting side's hand.
+    The non-acting side's mask therefore remains zero unless a future bridge
+    observation intentionally exposes known opponent cards.
+    """
+    us_hand = np.zeros((spec.card_count,), dtype=np.float32)
+    ussr_hand = np.zeros((spec.card_count,), dtype=np.float32)
+    side = str(obs.get("side") or "")
+    target = us_hand if side == "us" else ussr_hand if side == "ussr" else None
+    if target is not None:
+        for card_id in obs.get("hand", []) or []:
+            idx = card_index.get(str(card_id))
+            if idx is not None:
+                target[idx] = 1.0
+    return {"us_hand": us_hand, "ussr_hand": ussr_hand}
 
 
 def encode_history(history: list[dict[str, Any]], length: int = HISTORY_LENGTH) -> dict[str, np.ndarray]:

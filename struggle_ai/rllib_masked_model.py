@@ -71,6 +71,10 @@ if TorchModelV2 is not None:
             region_size = int(original["regions"].shape[-1])
             card_size = int(original["cards"].shape[-1])
             action_size = int(original["action_features"].shape[-1])
+            original_spaces = getattr(original, "spaces", {})
+            self.has_absolute_hand_masks = "us_hand" in original_spaces and "ussr_hand" in original_spaces
+            if self.has_absolute_hand_masks:
+                card_size += 2
 
             self.global_encoder = mlp(global_size + event_size, hidden, hidden)
             self.country_in = mlp(country_size, hidden, hidden)
@@ -164,7 +168,17 @@ if TorchModelV2 is not None:
                 obs["country_adjacency"].float(),
             )
             region_embedding = self.region_encoder(obs["regions"].float()).mean(dim=1)
-            card_embedding = self.card_encoder(obs["cards"].float()).mean(dim=1)
+            card_features = obs["cards"].float()
+            if self.has_absolute_hand_masks:
+                hand_features = torch.stack(
+                    [
+                        obs["us_hand"].float(),
+                        obs["ussr_hand"].float(),
+                    ],
+                    dim=-1,
+                )
+                card_features = torch.cat([card_features, hand_features], dim=-1)
+            card_embedding = self.card_encoder(card_features).mean(dim=1)
             embeddings = [global_embedding, country_embedding, region_embedding, card_embedding]
             if self.use_transformer_history:
                 embeddings.append(self.encode_history(obs))

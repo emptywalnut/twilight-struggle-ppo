@@ -2,13 +2,6 @@
 
 PPO-ready Twilight Struggle environment using Saito Twilight as the headless rules runner.
 
-## Published Contents
-
-This repository contains the code and sample data needed to run the training stack.
-Generated run artifacts are intentionally excluded: no PPO checkpoints, game
-logs, W&B run directories, Python caches, or installed `node_modules` are
-committed.
-
 ## Rules Preset
 
 The v1 preset is `optional_us_plus_2`:

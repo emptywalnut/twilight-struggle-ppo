@@ -124,6 +124,8 @@ class TwilightStruggleEnv(gym.Env):
                 "countries": spaces.Box(-np.inf, np.inf, shape=(self.feature_spec.country_count, COUNTRY_FEATURES), dtype=np.float32),
                 "regions": spaces.Box(-np.inf, np.inf, shape=(self.feature_spec.region_count, REGION_FEATURES), dtype=np.float32),
                 "cards": spaces.Box(-np.inf, np.inf, shape=(self.feature_spec.card_count, CARD_FEATURES), dtype=np.float32),
+                "us_hand": spaces.Box(0.0, 1.0, shape=(self.feature_spec.card_count,), dtype=np.float32),
+                "ussr_hand": spaces.Box(0.0, 1.0, shape=(self.feature_spec.card_count,), dtype=np.float32),
                 "country_adjacency": spaces.Box(0.0, 1.0, shape=(self.feature_spec.country_count, self.feature_spec.country_count), dtype=np.float32),
                 "action_mask": spaces.Box(0.0, 1.0, shape=(MAX_ACTIONS,), dtype=np.float32),
                 "action_features": spaces.Box(-np.inf, np.inf, shape=(MAX_ACTIONS, ACTION_FEATURES), dtype=np.float32),

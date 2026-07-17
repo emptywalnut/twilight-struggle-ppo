@@ -14,6 +14,10 @@ def test_env_reset_shapes_and_mask():
         assert obs["action_features"].shape[0] == MAX_ACTIONS
         assert obs["events"].shape == (EVENT_FEATURES,)
         assert obs["regions"].shape == (7, REGION_FEATURES)
+        assert obs["us_hand"].shape == (env.feature_spec.card_count,)
+        assert obs["ussr_hand"].shape == (env.feature_spec.card_count,)
+        assert np.sum(obs["us_hand"]) == 0
+        assert np.sum(obs["ussr_hand"]) == len(env.last_obs["hand"])
         assert obs["country_adjacency"].shape == (env.feature_spec.country_count, env.feature_spec.country_count)
         assert obs["history_actions"].shape == (HISTORY_LENGTH, ACTION_FEATURES)
         assert obs["history_sides"].shape == (HISTORY_LENGTH,)
