@@ -12,8 +12,10 @@ RUN_DIR="${RUN_DIR:-/mnt2/users/kaile/hantao/game/struggle/runs/ppo/unified-hist
 PYTHON="${PYTHON:-/mnt2/users/kaile/miniconda3/envs/struggle-ppo/bin/python}"
 
 RESTORE_FROM="${RESTORE_FROM:-/mnt2/users/kaile/hantao/game/struggle/runs/ppo/unified-history1024-antidrift-from3002-gpu2-20260714-221128/ppo_checkpoints/checkpoints/steps-0000217905-episodes-00001010}"
+US_TEACHER="${US_TEACHER:-$RESTORE_FROM}"
+USSR_TEACHER="${USSR_TEACHER:-$RESTORE_FROM}"
 ANCHORS="${ANCHORS:-[\"$RESTORE_FROM\"]}"
-MIX="${MIX:-{\"current_self\":0.55,\"teacher\":0.00,\"anchor\":0.35,\"random_legal\":0.10,\"heuristic\":0.00}}"
+MIX="${MIX:-{\"current_self\":0.50,\"teacher\":0.20,\"anchor\":0.20,\"random_legal\":0.10,\"heuristic\":0.00}}"
 
 LR="${LR:-0.00001}"
 NUM_EPOCHS="${NUM_EPOCHS:-4}"
@@ -34,10 +36,12 @@ EVAL_MIN_GAMES_PER_SIDE="${EVAL_MIN_GAMES_PER_SIDE:-30}"
 EVAL_HISTORY_OPPONENTS="${EVAL_HISTORY_OPPONENTS:-1}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-260000}"
 
-if [[ ! -d "$RESTORE_FROM" ]]; then
-  echo "missing checkpoint: $RESTORE_FROM" >&2
-  exit 2
-fi
+for path in "$RESTORE_FROM" "$US_TEACHER" "$USSR_TEACHER"; do
+  if [[ ! -d "$path" ]]; then
+    echo "missing checkpoint: $path" >&2
+    exit 2
+  fi
+done
 
 mkdir -p "$RUN_DIR"/{ppo_checkpoints,game_logs,metrics}
 {
@@ -110,6 +114,9 @@ timeout "$TIMEOUT_SECONDS" "$PYTHON" -m struggle_ai.train_rllib \
   --partial-warmstart \
   --load-report-path "$RUN_DIR/ppo_load_report.json" \
   --eval-initial-from "$RESTORE_FROM" \
+  --benchmark-label start_best \
+  --benchmark-us-policy-from "$US_TEACHER" \
+  --benchmark-ussr-policy-from "$USSR_TEACHER" \
   --stop-episodes "$PPO_EPISODES" \
   --num-env-runners "$NUM_ENV_RUNNERS" \
   --num-gpus 1 \
